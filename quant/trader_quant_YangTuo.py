@@ -119,10 +119,37 @@ def StockTrade(NumStock, step):
 
 class YangTuo():
     def __init__(self):
-        self._Day = 30
+#回测时间
+        self._Day = 330
+        self._NextDay = 20
+        # 代码
         self._Code = None
+#
         self._pastCodeKline = {}
+
+#默认组合数量
         self._maxYT = 5
+
+        #保存当前交易的代码, 每 _Day 记录一次
+# code 股票代码，sdate,开始时间，edate 结束时间，close 收盘价格，hfqclose hfq
+# 收盘价格, returns 收益，types 是不是已经结束了, team _Day 的组合
+        self._col = ['code','sdate','edate','close','hfqclose','returns','types','team']
+
+        self._TraderCodeList = pd.DataFrame(columns=self._col)
+# 更换的时候，把所有负收益都去掉
+
+        self._AllLoss = True
+
+
+    def setAllLoo(self, flag):
+        """
+            设置对换数量
+        Parameters
+        ----------
+        flag:boolen  default True
+
+        """
+        self._AllLoss = flag
 
     def setDay(self, day):
         self._Day = day
@@ -130,17 +157,30 @@ class YangTuo():
     def setCode(self, code):
         self._Code = code
 
-    def getRange(self,tol, l):
+    def getTraderCodeList(self):
+        return self._TraderCodeList
+
+    def getRange(self,tol, cl):
         """
             获取随机数
+        Parameters
+        ----------
+            tol:int  len(cl)
+            cl:list  codelist
+        Return
+        -------
+            p:int  cl index
         """
-        p = random.randint(0, tol)
-        while p in l:
-            p = random.randint(0, tol)
-
+        p = 0
+        tcl = self._TraderCodeList[self._TraderCodeList.types == 1]
+        while True:
+            p = random.randint(0, tol-1)
+            code = cl[p]["code"]
+            if tcl[tcl.code == code].code.count() == 0:
+                break
         return p
 
-    def FindQuant(self, date, code):
+    def FindKline(self, iday, code):
         """
             找出该代码的K线
         Parameters
@@ -152,23 +192,91 @@ class YangTuo():
             DataFrame
         """
         kp = kPrice()
+        kline = kp.getOrderDateKLine(code, iday, 1)
+
+        return kline
+
+    def FindQuant(self, kline, date, code):
+        """
+        Parameters
+        ---------
+            kline:DataFrame
+            date: date
+            code:String
+        Return
+        ------
+            None
+            False
+            True
+        """
+        runCode = self._TraderCodeList[self._TraderCodeList.types == 1]
+        runCode = runCode[runCode.code == code]
+#        kline = self.FindKline(iday,runCode.code.values[0])
         qm = quantMaKline()
-        qm.setmal(20)
-        kline = kp.getOrderDateKLine(code, date, 1)
+        qm.setmal(self._NextDay)
+        flag = None
         if kline is not None:
             nextDateIndex = kline[kline.date == date]
+            if nextDateIndex.date.count() == 0:
+                return flag
             onlyDay = kline[kline.index == nextDateIndex.index[0]]
 
             if code in self._pastCodeKline:
                 pck = self._pastCodeKline[code]
-                print qm.quantma(onlyDay, pck)
+                flag = qm.quantma(onlyDay, pck)
             else:
-                print qm.quantma(onlyDay)
+                flag = qm.quantma(onlyDay)
 
             self._pastCodeKline[code] = onlyDay
+        return flag
 
-        print "====================="
-        return kline
+    def TheLastLoss(self, returns=0):
+        """
+            找出收益最差的几个
+        Parameters
+            returns:float 收益极值
+        ---------
+        Return
+        --------
+            list
+        """
+        if self._AllLoss == False:
+            loss = self._TraderCodeList[self._TraderCodeList.types == 1].sort_values(by="returns")
+
+            code = loss.head(1).code.values[0]
+            self._TraderCodeList.loc[(self._TraderCodeList['code'] == code) &
+                                     (self._TraderCodeList["types"] == 1), 'types'] = 0
+        else:
+            loss = self._TraderCodeList[self._TraderCodeList.types == 1]
+            loss = loss[loss.returns < returns]
+            for code in loss.code.values:
+                self._TraderCodeList.loc[(self._TraderCodeList['code'] == code) &
+                                     (self._TraderCodeList["types"] == 1), 'types'] = 0
+
+    def UpdateReturns(self, iday):
+        runCode = self._TraderCodeList[self._TraderCodeList.types == 1]
+        #print runCode
+        if runCode.code.count() == 0:
+            return
+
+        for rc in runCode.itertuples():
+
+            code = rc.code
+            khfqline = self.FindKline(iday, code+"_hfq")
+            if khfqline is None:
+                continue
+            khfqline = khfqline[khfqline.date == iday]
+            if khfqline.close.count()==0:
+                continue
+
+            close = khfqline.close.values[0]
+            preclose = rc.hfqclose
+            returns =(close - preclose)/close*100
+
+            self._TraderCodeList.loc[(self._TraderCodeList['code'] == code) &
+                                     (self._TraderCodeList["types"] == 1), 'returns'] = returns
+            self._TraderCodeList.loc[(self._TraderCodeList['code'] == code) &
+                                     (self._TraderCodeList["types"] == 1), 'edate'] = iday
 
     def StockTrade(self):
         startDay = time()-86400*self._Day
@@ -178,42 +286,75 @@ class YangTuo():
         qm = quantMaKline()
         qm.setmal(20)
         ga = getAllStock()
-        cl = None
-
-        TraderCodelist = []
-
+        codelist = None
 
         if self._Code is not None:
-            cl = ga.getIndustryCode(self._Code)
+            codelist = ga.getIndustryCode(self._Code)
         else:
-            cl = ga.getUn800()
-        tol = len(cl)
-        p = self.getRange(tol, TraderCodelist)
-        code = cl[p]["code"]
+            codelist = ga.getUn800()
+        #tol = len(codelist)
 
-        for i in hs3t:
+        step = 0
+        team = 1
+        for iday in hs3t:
+
+            self.UpdateReturns(iday)
+
+            #sell every 13 day
+            if step == self._NextDay:
+                team += 1
+                self.TheLastLoss()
+                step = 0
+            else:
+                self.TheLastLoss(-2)
+            """
             #sell
-            for sc in TraderCodelist:
+            for sc in TraderCodeList:
                 sflag = self.FindQuant(i, sc)
                 if sflag == False:
                     # quant
-                    TraderCodelist.pop(sc)
+                    TraderCodeList.pop(sc)
+                    sdf = pd.Series([bcode,day.ds, day.de, sclose,eclose, term, 1, i, diff], index=col)
+                    stockDF = stockDF.append(sdf, ignore_index=True)
+
                 # return < -5
+                ctmp = buyList[-1]
+                returns =(hfqDayK.close.values[0] - ctmp.close.values[0])/hfqDayK.close.values[0]*100
                 if returns < -5:
-                    TraderCodelist.pop(sc)
+                    TraderCodeList.pop(sc)
+                    sdf = pd.Series([bcode,day.ds, day.de, sclose,eclose, term, 1, i, diff], index=col)
+                    stockDF = stockDF.append(sdf, ignore_index=True)
 
+            """
             #buy
-            for co in cl:
-                if co in TraderCodelist:
-                    continue
-                bflag = self.FindQuant(i, co)
-                if bflag == True:
-                    TraderCodelist.append(co)
-
+            for cd in codelist:
                 # 组合股票数
-                if len(TraderCodelist) == self._maxYT:
-                    break;
+                if self._TraderCodeList[self._TraderCodeList.types == 1].types.count() == self._maxYT:
+                    break
 
+                #p = self.getRange(tol, codelist)
+                code = cd["code"]
+                kline = kp.getOrderDateKLine(code, iday, 1)
+                if kline is None:
+                    continue
+                khfqline = kp.getOrderDateKLine(code+"_hfq", iday, 1)
+                if khfqline is None:
+                    continue
+                bflag = self.FindQuant(kline, iday, code)
+                if bflag == False:
+#col = ['code','sdate','edate','close','hfqclose','returns','types','team']
+                    nextDateIndex = khfqline[khfqline.date == iday]
+                    if nextDateIndex.close.count()==0:
+                        continue
+                    hfqDay = khfqline[khfqline.index == nextDateIndex.index[0]]
+                    pdser = pd.Series([code, hfqDay.date.values[0], 0, kline.close.values[0] ,
+                                       hfqDay.close.values[0], 0, 1, team],index=self._col)
+
+                    self._TraderCodeList = self._TraderCodeList.append(pdser,ignore_index=True)
+
+                    continue
+
+            step+=1
 
 
 def main():
@@ -223,7 +364,8 @@ def main():
         yt = YangTuo()
         yt.setCode(code)
         yt.StockTrade()
-
+        rest = yt.getTraderCodeList()
+        print rest.sort_values(by="returns")
         """
         pri = test(code)
         print pri
@@ -248,8 +390,9 @@ def main():
         """
         #print "2"
     else:
-        yt = YangTuo()
-        yt.StockTrade()
+        print "3"
+        #yt = YangTuo()
+        #yt.StockTrade()
 
 if __name__ == "__main__":
     main()

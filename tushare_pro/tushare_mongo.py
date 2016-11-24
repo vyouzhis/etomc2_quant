@@ -97,7 +97,7 @@ class pyMongodb():
 
     def SaveKLine(self, NowTime, endTime):
         conn = pymongo.MongoClient('192.168.1.83', port=27017)
-
+        #print NowTime, endTime
         df = None
         if self.__stockType == None:
             df = ts.get_hist_data(self.__code,start=NowTime, end=endTime)
@@ -109,6 +109,7 @@ class pyMongodb():
             return
 
         df = df.reset_index()
+        df.date = df["date"].astype(str)
         df = df.sort_values(by="date")
         if df.date.count() == 0:
             return
@@ -134,7 +135,7 @@ class pyMongodb():
         stockName = self.__code
         if self.__stockType is not None:
             stockName = self.__code+"_hfq"
-        print stockName
+        #print stockName
         stockDB[stockName] = j
         if flag:
             conn.etomc2["stockDB"].insert(stockDB)
@@ -153,7 +154,7 @@ class getAllStock():
 
         for post in codeList:
             code = post["code"]
-            print code
+            #print code
             pmdb.setCode(code)
 
             pmdb.setType(None)

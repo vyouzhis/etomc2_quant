@@ -10,6 +10,7 @@
 #
 from time import localtime, strftime, time
 import pandas as pd
+import numpy as np
 
 from kPrice import kPrice
 
@@ -25,6 +26,34 @@ class quantMaKline():
         self._mal = 20
 # 240 个交易日
         self._Day = 240
+
+        self._DataKLine = None
+
+        self._DataLen = 3
+
+    def setDataKLine(self, dk):
+        """
+            设置K线保存数据
+        Parameters
+        ---------
+            dk:DataFrame
+        """
+        if self._DataKLine is None:
+            self._DataKLine = dk
+        else:
+            self._DataKLine = self._DataKLine.append(dk,ignore_index=True)
+            self._DataKLine = self._DataKLine.sort_values(by="date")
+            self._DataKLine = self._DataKLine.tail(self._DataLen)
+
+
+    def setDataLen(self, len):
+        """
+            设置K线保存数量
+        Parameters
+        ----------
+            len:int
+        """
+        self._DataLen = len
 
     def setLoss(self, loss):
         """
@@ -62,7 +91,55 @@ class quantMaKline():
         """
         self._Day = day
 
-    def quantma(self, nowPrice, prePrice=None):
+    def SortKline(self, s=0):
+        """
+          /
+         /
+        /
+        上升,买入
+        """
+        a = [1,2,3]
+        if s == 1:
+            """
+             /\
+            /
+             反转下降，缓,观望
+            """
+            a = [1,3,2]
+        elif s == 2:
+            """
+            \
+             \/
+            反转上升，缓,观望
+            """
+            a = [2,3,1]
+        elif s == 3:
+            """
+              /
+            \/
+            反转上升，急,买入
+            """
+            a = [2,1,3]
+        elif s == 4:
+            """
+            /\
+              \
+            反转下降,急,卖出
+            """
+            a = [3,1,2]
+        elif s == 5:
+            """
+            \
+             \
+              \
+            下降,卖出
+            """
+            a = [3,2,1]
+        df1 = pd.DataFrame({'A':a},index=np.arange(1,4,1))
+        df1 = df1.sort_values(by="A")
+        return df1.index
+
+    def quantma(self):
         """
             选择单个股票的基本策略,当5天均线低于10天均线的时候，买入，反之卖出.
         Parameters
@@ -73,7 +150,7 @@ class quantMaKline():
         -------
             True: 买入
             False: 卖出
-        """
+
         mas = "ma"+str(self._mas)
         mal = "ma"+str(self._mal)
 
@@ -103,6 +180,85 @@ class quantMaKline():
         elif a < ab:
             # buy
             return True
+        """
+
+        mas = "ma"+str(self._mas)
+        mal = "ma"+str(self._mal)
+
+        if self._DataKLine is None:
+            return False
+
+        if self._DataKLine.close.count() != self._DataLen:
+            return False
+        """
+        tmpMsVal = 0
+        tmpMlVal = 0
+
+        for kl in self._DataKLine.itertuples():
+            if tmpMsVal == 0:
+                tmpMsVal = kl[mas].values[0]
+
+            msval = kl[mas].values[0]
+            ps = (msval-tmpMsVal)/msval*100
+            tmpMsVal = msval
+
+            if tmpMlVal == 0:
+                tmpMlVal = kl[mal].values[0]
+
+            mlval = kl[mal].values[0]
+            pl = (mlval-tmpMlVal)/mlval*100
+            tmpMlVal = mlval
+
+            pdser = pd.Series([ps, pl,],index=col )
+            mdf = mdf.append(pdser,ignore_index=True)
+            percent.append()
+        """
+
+        masIndex = self._DataKLine.sort_values(by=mas).index
+        for i in range(6):
+            up = self.SortKline(i)
+            if masIndex.equals(up) == True and (i == 0 or i == 3):
+                return True
+            elif masIndex.equals(up) == True and (i == 4 or i == 5):
+                return False
+
+        return None
+
+    def quantRun(self):
+        mas = "ma"+str(self._mas)
+        mal = "ma"+str(self._mal)
+
+        sflag = self.run(mas)
+        lflag = self.run(mal)
+
+        if sflag == True and lflag == True:
+            return True
+        elif sflag == True and lflag == False:
+            return True
+        elif sflag == False and lflag == True:
+            return False
+        elif sflag == False and lflag == False:
+            return False
+        else:
+            return None
+
+    def run(self, ma):
+
+        if self._DataKLine is None:
+            return False
+
+        if self._DataKLine.close.count() != self._DataLen:
+            return False
+
+        maIndex = self._DataKLine.sort_values(by=ma).index
+        for i in range(6):
+            up = self.SortKline(i)
+            if maIndex.equals(up) == True and (i == 0 or i == 3):
+                return True
+            elif maIndex.equals(up) == True and (i == 4 or i == 5):
+                return False
+
+        return None
 
     def order(self, code, kl, hfqk, returns, types):
         """
@@ -146,6 +302,8 @@ class quantMaKline():
         -------
 
         """
+        self._DataKLine = None
+
         kl = kPrice()
         kprice = kl.getAllKLine(code)
         hfqprice = kl.getAllKLine(code+"_hfq")
@@ -168,11 +326,15 @@ class quantMaKline():
 
             if len(nextDateIndex.index) > 0:
                 onlyDayK = kprice[kprice.index == nextDateIndex.index[0]].head(1)
+                self.setDataKLine(onlyDayK)
+                if self._DataKLine.close.count() != self._DataLen:
+                    continue
+
                 hfqDayK = hfqprice[hfqprice.index == nextDateIndex.index[0]].head(1)
                 if hfqDayK.date.count() == 0:
                     continue
 
-                flag = self.quantma(onlyDayK, prePrice)
+                flag = self.quantRun()
 
                 if flag == True and sb == True:
                     buyList.append(hfqDayK)

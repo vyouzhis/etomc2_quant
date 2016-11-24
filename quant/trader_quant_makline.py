@@ -52,6 +52,7 @@ def main():
     gmdf = gmdf.set_index(["code"])
 
     print gmdf
+    print sum(gmdf.returns)
         #print "3"
         #for i in range(1,20):
         #StockTrade(5, 30)
