@@ -13,6 +13,8 @@ from time import localtime, strftime, time
 import calendar
 import pandas as pd
 import numpy as np
+import talib
+import stockstats
 
 """
 df = ts.get_latest_news()
@@ -54,13 +56,27 @@ def toJson(dfData):
 #print code_cashflowDf.head(2).drop_duplicates("code")
 #j = json.loads(code_cashflowDf.to_json(orient="index"))
 #print j
-#stock = "601988"
-#NowTime = "2016-11-01"
-#endTime = "2016-11-%d"%(calendar.monthrange(2016, 11)[1])
+stock = "601988"
+NowTime = "2016-01-01"
+endTime = "2016-11-%d"%(calendar.monthrange(2016, 11)[1])
 #df = ts.get_h_data(stock,start=NowTime, end=endTime)
-#df = ts.get_h_data(stock, autype="hfq", start=NowTime, end=endTime)
+df = ts.get_h_data(stock, autype="hfq", start=NowTime, end=endTime)
 #df = df.reset_index()
 #df.date = df["date"].astype(str)
+#print df
+stock = stockstats.StockDataFrame.retype(df)
+print stock.get("open_2_sma")
+inputs = {
+    'open': df.open.values,
+    'high': df.high.values,
+    'low': df.low.values,
+    'close': df.close.values,
+    'volume': df.volume.values
+}
+#print inputs
+tma = talib.abstract.MA(inputs, timeperiod=5)
+print tma
+#df["ma5"] = tma
 #print df
 #cjson = df.to_json(orient="records", date_format="epoch",date_unit="s")
 #j = json.loads(cjson)
@@ -104,4 +120,25 @@ def pdIndex():
     print df2.index.equals(df1.index)
 
     print np.arange(1,4, 1)
-pdIndex()
+#pdIndex()
+
+def KDJ(date,N=9,M1=3,M2=3):
+    datelen=len(date)
+    array=np.array(date)
+    kdjarr=[]
+    for i in range(datelen):
+        if i-N<0:
+            b=0
+        else:
+            b=i-N+1
+        rsvarr=array[b:i+1,0:5]
+        rsv=(float(rsvarr[-1,-1])-float(min(rsvarr[:,3])))/(float(max(rsvarr[:,2]))-float(min(rsvarr[:,3])))*100
+        if i==0:
+            k=rsv
+            d=rsv
+        else:
+            k=1/float(M1)*rsv+(float(M1)-1)/M1*float(kdjarr[-1][2])
+            d=1/float(M2)*k+(float(M2)-1)/M2*float(kdjarr[-1][3])
+        j=3*k-2*d
+        kdjarr.append(list((rsvarr[-1,0],rsv,k,d,j)))
+    return kdjarr

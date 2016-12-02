@@ -10,6 +10,7 @@
 #
 import pymongo
 import pandas as pd
+import talib
 
 class kPrice():
     def __init__(self):
@@ -26,6 +27,25 @@ class kPrice():
         mdf = pd.DataFrame(KL)
         mdf = mdf.sort_values(by="date")
         return mdf
+
+    def talibMa(self, df, tp):
+        """
+            获得不同的 Moving average
+        Parameters
+            df:DataFrame  K line
+            tp:int  k number
+        Return:
+            list
+        """
+        inputs = {
+            'open': df.open.values,
+            'high': df.high.values,
+            'low': df.low.values,
+            'close': df.close.values,
+            'volume': df.volume.values
+        }
+        tma = talib.abstract.MA(inputs, timeperiod=tp)
+        return tma
 
     def getOrderDateKLine(self, code, oby, lmt):
         """

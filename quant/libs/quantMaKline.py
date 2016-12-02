@@ -20,6 +20,8 @@ class quantMaKline():
         self._codema = pd.DataFrame(columns=self._col)
 #止损 -9%
         self._loss = -9
+#止赢 3%
+        self._right = 3
 #短线 5
         self._mas = 5
 #长线 20
@@ -260,6 +262,53 @@ class quantMaKline():
 
         return None
 
+    def quantSgtL(self):
+        mas = "ma"+str(self._mas)
+        mal = "ma"+str(self._mal)
+        n = 0.1
+        ils = [0,2,3]
+        rms = self.quantSL(mas, ils)
+        ill = [1,2,3,4,5]
+        rml = self.quantSL(mal, ill)
+
+        kl = self._DataKLine.sort_values(by="date").tail(2)
+        klLast = kl.tail(1)
+        kl = kl.head(1)
+
+        sval = kl[mas].values[0]
+        lval = kl[mal].values[0]
+        m = sval - lval
+
+        if rms in ils and rml in ill and m < n:
+            #print "%f , %s"%(m, kl["date"].values[0])
+            if klLast[mas].values[0] > klLast[mal].values[0]:
+                return True
+
+        rms = self.quantSL(mas, ill)
+        rml = self.quantSL(mal, ils)
+
+        if rms in ill and rml in ils and m < n:
+            if klLast[mas].values[0] < klLast[mal].values[0]:
+                return False
+
+        return None
+
+    def quantSL(self, ma, il):
+
+        if self._DataKLine is None:
+            return -1
+
+        if self._DataKLine.close.count() != self._DataLen:
+            return -1
+
+        maIndex = self._DataKLine.sort_values(by=ma).index
+        for i in range(6):
+            up = self.SortKline(i)
+            if maIndex.equals(up) == True and (i in il):
+                return i
+
+        return -1
+
     def order(self, code, kl, hfqk, returns, types):
         """
             记录交易细则
@@ -305,66 +354,68 @@ class quantMaKline():
         self._DataKLine = None
 
         kl = kPrice()
-        kprice = kl.getAllKLine(code)
         hfqprice = kl.getAllKLine(code+"_hfq")
-        if kprice is None:
-            return None
+        hfqprice["ma5"] = kl.talibMa(hfqprice, 5)
+        hfqprice["ma20"] = kl.talibMa(hfqprice, 22)
 
+        if hfqprice is None:
+            return None
 
         startDay = time()-86400*self._Day
         NowTime = strftime("%Y-%m-%d", localtime(startDay))
         kp = kPrice()
         hs3t = kp.HS300Time(NowTime)
-        buyList = []
-        sellList = []
+        buyList = None
         sb = True
         creturns = 0
-        prePrice = None
+
         for i in hs3t:
-            nextDateIndex = kprice[kprice.date == i]
+            nextDateIndex = hfqprice[hfqprice.date == i]
             ctmp = None
 
             if len(nextDateIndex.index) > 0:
-                onlyDayK = kprice[kprice.index == nextDateIndex.index[0]].head(1)
+                onlyDayK = nextDateIndex.head(1)
                 self.setDataKLine(onlyDayK)
                 if self._DataKLine.close.count() != self._DataLen:
                     continue
 
-                hfqDayK = hfqprice[hfqprice.index == nextDateIndex.index[0]].head(1)
+                hfqDayK = hfqprice[hfqprice.date == i].head(1)
+
                 if hfqDayK.date.count() == 0:
                     continue
 
-                flag = self.quantRun()
+                flag = self.quantSgtL()
+                #flag = self.quantRun()
 
                 if flag == True and sb == True:
-                    buyList.append(hfqDayK)
+                    buyList = hfqDayK
                     self.order(code,onlyDayK, hfqDayK, 0, "buy")
 
                     sb = False
 
-
-                if len(buyList) > 0:
-                    ctmp = buyList[-1]
+                if buyList is not None and sb == False:
+                    ctmp = buyList
                     returns =(hfqDayK.close.values[0] - ctmp.close.values[0])/hfqDayK.close.values[0]*100
+                    if returns > -1 and returns < 2:
+                        continue
 
-                    if returns < self._loss and sb == False:
-                        #print returns, onlyDayK.date.values[0]
-                        sellList.append(onlyDayK)
+                    if returns < self._loss:
+
                         sb = True
-                        returns =(hfqDayK.close.values[0] - ctmp.close.values[0])/hfqDayK.close.values[0]*100
+                        self.order(code,onlyDayK, hfqDayK,returns, "sell2")
+                        creturns += returns
+                        buyList = None
+
+                    elif flag == False:
+                        sb = True
                         self.order(code,onlyDayK, hfqDayK,returns, "sell")
                         creturns += returns
+                        buyList  = None
 
-                if flag == False and sb == False:
-                    ctmp = buyList[-1]
-                    returns =(hfqDayK.close.values[0] - ctmp.close.values[0])/hfqDayK.close.values[0]*100
-
-                    sellList.append(onlyDayK)
-                    sb = True
-
-                    self.order(code,onlyDayK, hfqDayK,returns, "sell")
-                    creturns += returns
-
-                prePrice = onlyDayK
+        if buyList is not None and len(nextDateIndex.index) > 0:
+            ctmp = buyList
+            #print nextDateIndex
+            rs =(nextDateIndex.close.values[0] - ctmp.close.values[0])/nextDateIndex.close.values[0]*100
+            self.order(code, nextDateIndex, nextDateIndex,rs, "buying")
 
         return creturns
