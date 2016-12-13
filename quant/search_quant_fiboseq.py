@@ -17,6 +17,7 @@ from libs.mongo_data import Feed
 from pyalgotrade import bar
 from libs.alphaLib import alphaLib as ap
 from libs.utils import dataSet
+from libs.buildReturnJson import buildReturnJson as brj
 
 from pyalgotrade import strategy
 from pyalgotrade.technical import ma
@@ -179,7 +180,16 @@ def main():
                 ps = pd.Series([cd, l,s, sr],index=col)
                 sdf = sdf.append(ps,ignore_index=True)
 
-        print sdf.sort_values(by="收益率").to_json(orient="split")
+        json = sdf.sort_values(by="收益率").to_json(orient="split")
+
+        brjObject = brj()
+        brjObject.RawMa(1)
+        brjObject.db(json)
+        brjObject.formats("table")
+        brjObject.name("fiboseq")
+        brjObject.buildData()
+        bjson = brjObject.getResult()
+        print bjson
 #        print sdf.groupby(['lv','sv']).mean().sort_values(by="returns")
 
 if __name__ == "__main__":

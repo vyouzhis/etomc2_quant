@@ -108,7 +108,7 @@ class getAllStock():
             获取该股票的行业代码
         Parameters
         ---------
-        code:string  代码
+            code:string  代码
         Return
         -------
             list
@@ -125,3 +125,26 @@ class getAllStock():
             clist = list(sdb.find({"c_name":{"$eq":cname}},{"_id":0,"code":1,"name":1}))
 
         return clist
+
+    def getInfo(self,ym, ctype, c):
+        """
+            getInfo 获取 stockinfo 信息
+        Parameters
+        ---------
+            ym:int  年份月份
+            ctype:String 类型
+            c:String  code
+        Return
+        -------
+            DataFrame
+
+        """
+        conn = pymongo.MongoClient('192.168.1.83', port=27017)
+
+        BasicsList = conn.etomc2["stockInfo"].find({"ym":{"$eq":ym}},{"Info."+ctype+"."+c:1,"_id":0, "ym":1}).limit(1)
+        if BasicsList.count() != 0:
+            bl = BasicsList[0]['Info'][ctype]
+            df = pd.DataFrame(data=bl)
+            return df.T
+        else:
+            return None

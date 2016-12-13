@@ -15,6 +15,10 @@ import sys
 from time import localtime, strftime, time
 import datetime
 
+from libs.kPrice import kPrice
+from libs.kPrice import getAllStock
+from libs.buildReturnJson import buildReturnJson as brj
+
 def getInfo(ym, ctype, c):
     conn = pymongo.MongoClient('192.168.1.83', port=27017)
 
@@ -82,7 +86,7 @@ def test():
             print kl
 
 def getPrice(code):
-    st = strftime("%Y-%m-%d", localtime(time()-86400*5))
+    st = strftime("%Y-%m-%d", localtime(time()-86400*15))
     k = getKLine(code,st)
     if k is None:
         return None
@@ -138,7 +142,17 @@ def getIndustry(code):
             pedf = pedf.append(pdser,ignore_index=True)
             #print "name:%s, code:%s, pe:%02f"%(pecode["name"], pcode, pe)
     #print pedf.to_json(orient="split")
-    print pedf.sort_values(by="pe").to_json(orient="split")
+    json = pedf.sort_values(by="pe").to_json(orient="split")
+
+    brjObject = brj()
+    brjObject.RawMa(1)
+    brjObject.db(json)
+    brjObject.formats("table")
+    brjObject.name("fama")
+    brjObject.buildData()
+    bjson = brjObject.getResult()
+    print bjson
+
     #me = pedf.pe.mean()
     #print "pe mean:",me
     #print "lt:",pedf[pedf.pe < me].pe.count()

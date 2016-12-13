@@ -14,12 +14,14 @@ import sys
 
 from libs.kPrice import getAllStock
 from libs.quantMaKline import quantMaKline
+from libs.buildReturnJson import buildReturnJson as brj
 
 def main():
 
     qm = quantMaKline()
     qm.setmal(20)
-
+    code = None
+    brjObject = brj()
     if(len(sys.argv) == 2):
         code = sys.argv[1]
 
@@ -34,10 +36,17 @@ def main():
                 continue
             pdser = pd.Series([c["code"], pri,c['name']],index=col )
             mdf = mdf.append(pdser,ignore_index=True)
-        print mdf.sort_values(by="returns")
-        print mdf.returns.mean()
-        print "right count:%d, sum:%f"%(mdf[mdf.returns > 0].returns.count(), sum(mdf[mdf.returns > 0].returns))
-        print "loss count:%d, sum:%f"%(mdf[mdf.returns < 0].returns.count(), sum(mdf[mdf.returns < 0].returns))
+
+        json = mdf.sort_values(by="returns").to_json(orient="split")
+        brjObject.RawMa(1)
+        brjObject.db(json)
+        brjObject.formats("table")
+        brjObject.name("makline")
+        brjObject.buildData()
+
+        #print mdf.returns.mean()
+        #print "right count:%d, sum:%f"%(mdf[mdf.returns > 0].returns.count(), sum(mdf[mdf.returns > 0].returns))
+        #print "loss count:%d, sum:%f"%(mdf[mdf.returns < 0].returns.count(), sum(mdf[mdf.returns < 0].returns))
 
         #print "2"
     elif (len(sys.argv) == 3):
@@ -51,8 +60,17 @@ def main():
     gmdf = qm.getCodeMa510()
     gmdf = gmdf.set_index(["code"])
 
-    print gmdf
-    print sum(gmdf.returns)
+    json =  gmdf[gmdf.index == code].to_json(orient="split")
+
+    brjObject.RawMa(1)
+    brjObject.db(json)
+    brjObject.formats("table")
+    brjObject.name("makline")
+    brjObject.buildData()
+    bjson = brjObject.getResult()
+    print bjson
+
+    #print sum(gmdf.returns)
         #print "3"
         #for i in range(1,20):
         #StockTrade(5, 30)
