@@ -64,8 +64,9 @@ df = ts.get_h_data(stock, autype="hfq", start=NowTime, end=endTime)
 #df = df.reset_index()
 #df.date = df["date"].astype(str)
 #print df
-stock = stockstats.StockDataFrame.retype(df)
-print stock.get("open_2_sma")
+#stock = stockstats.StockDataFrame.retype(df)
+#print stock.get("macd")
+#print "----------"
 inputs = {
     'open': df.open.values,
     'high': df.high.values,
@@ -73,9 +74,16 @@ inputs = {
     'close': df.close.values,
     'volume': df.volume.values
 }
+
 #print inputs
-tma = talib.abstract.MA(inputs, timeperiod=5)
-print tma
+#tma = talib.abstract.MA(df.close.values, timeperiod=5)
+#print tma
+tmacd,macdsing,macdhist = talib.abstract.MACD(inputs)
+print tmacd
+print "--------"
+print macdsing
+print "============="
+print macdhist
 #df["ma5"] = tma
 #print df
 #cjson = df.to_json(orient="records", date_format="epoch",date_unit="s")

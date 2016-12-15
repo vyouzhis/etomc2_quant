@@ -22,31 +22,23 @@ def main():
     qm.setmal(20)
     code = None
     brjObject = brj()
+
+    mdfCode = None
+
     if(len(sys.argv) == 2):
         code = sys.argv[1]
 
         gc = getAllStock()
         cl = gc.getIndustryCode(code)
-        col = ["code","returns", "name"]
-        mdf = pd.DataFrame(columns=col)
+        col = ["code", "name","returns"]
+        mdfCode = pd.DataFrame(columns=col)
         for c in cl:
 
             pri = qm.makline(c['code'])
             if pri is None:
                 continue
-            pdser = pd.Series([c["code"], pri,c['name']],index=col )
-            mdf = mdf.append(pdser,ignore_index=True)
-
-        json = mdf.sort_values(by="returns").to_json(orient="split")
-        brjObject.RawMa(1)
-        brjObject.db(json)
-        brjObject.formats("table")
-        brjObject.name("makline")
-        brjObject.buildData()
-
-        #print mdf.returns.mean()
-        #print "right count:%d, sum:%f"%(mdf[mdf.returns > 0].returns.count(), sum(mdf[mdf.returns > 0].returns))
-        #print "loss count:%d, sum:%f"%(mdf[mdf.returns < 0].returns.count(), sum(mdf[mdf.returns < 0].returns))
+            pdser = pd.Series([c["code"],c['name'], pri],index=col )
+            mdfCode = mdfCode.append(pdser,ignore_index=True)
 
         #print "2"
     elif (len(sys.argv) == 3):
@@ -57,16 +49,79 @@ def main():
     else:
         print "2"
 
-    gmdf = qm.getCodeMa510()
-    gmdf = gmdf.set_index(["code"])
 
-    json =  gmdf[gmdf.index == code].to_json(orient="split")
+    mdfCodeMe = mdfCode[mdfCode.code == code].copy()
+
+    if mdfCodeMe.code.count() > 0:
+        mdfCodeMe.loc[:,"returns"] = mdfCodeMe["returns"].apply(lambda x: "%.02f%%"%x)
+        json = mdfCodeMe.to_json(orient="split")
+
+        brjObject.RawMa(1)
+        brjObject.db(json)
+        brjObject.formats("table")
+        brjObject.name(code)
+        brjObject.buildData()
+
+    gmdf = qm.getCodeMa510()
+    #gmdf = gmdf.set_index(["code"])
+    del gmdf["mas"]
+    del gmdf["mal"]
+
+    gmdfCode = gmdf[gmdf.code == code]
+    if gmdfCode.code.count()>0:
+        json = gmdfCode.sort_values(by="date").to_json(orient="split")
+
+        brjObject.RawMa(1)
+        brjObject.db(json)
+        brjObject.formats("table")
+        brjObject.name(code)
+        brjObject.buildData()
+
+    json = gmdf[gmdf["type"] == "buy"].sort_values(by="date").tail(8).to_json(orient="split")
+
+    brjObject.RawMa(1)
+    brjObject.db(json)
+    brjObject.formats("table")
+    brjObject.name("makline buy")
+    brjObject.buildData()
+
+    json = gmdf[gmdf["type"] == "sell"].sort_values(by="date").tail(8).to_json(orient="split")
+
+    brjObject.RawMa(1)
+    brjObject.db(json)
+    brjObject.formats("table")
+    brjObject.name("makline buy")
+    brjObject.buildData()
+
+    cols = ["right", "loss","right sum", "loss sum", "differ"]
+    mdfCodes = pd.DataFrame(columns=cols)
+
+    right = mdfCode[mdfCode.returns > 0].returns.count()
+    loss = mdfCode[mdfCode.returns < 0].returns.count()
+    right_sum = sum(mdfCode[mdfCode.returns > 0].returns)
+    loss_sum = sum(mdfCode[mdfCode.returns < 0].returns)
+    mean = "%.02f%%"%(right_sum - abs(loss_sum))
+    pdser = pd.Series([right,loss,"%.02f%%"%(right_sum),"%.02f%%"%loss_sum,mean],index=cols)
+    mdfCodes = mdfCodes.append(pdser,ignore_index=True)
+
+    json = mdfCodes.to_json(orient="split")
+
+    brjObject.RawMa(1)
+    brjObject.db(json)
+    brjObject.formats("table")
+    brjObject.name("result")
+    brjObject.buildData()
+
+    mdfRes = mdfCode.sort_values(by="returns", ascending=False)
+    mdfRes.loc[:,"returns"] = mdfRes["returns"].apply(lambda x: "%.02f%%"%x)
+    json = mdfRes.to_json(orient="split")
 
     brjObject.RawMa(1)
     brjObject.db(json)
     brjObject.formats("table")
     brjObject.name("makline")
     brjObject.buildData()
+
     bjson = brjObject.getResult()
     print bjson
 
