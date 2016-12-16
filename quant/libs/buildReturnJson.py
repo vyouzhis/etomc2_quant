@@ -43,6 +43,10 @@ class buildReturnJson():
         self._db = None
         self._name = None
         self._date = None
+        self._index = 0
+
+    def Index(self, i):
+        self._index = i
 
     def RawMa(self, v):
         """

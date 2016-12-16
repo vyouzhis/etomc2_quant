@@ -33,6 +33,10 @@ class quantMaKline():
 
         self._DataLen = 3
 
+        self._SortTest = {}
+
+        self.InitSortTest()
+
     def setDataKLine(self, dk):
         """
             设置K线保存数据
@@ -93,6 +97,10 @@ class quantMaKline():
         """
         self._Day = day
 
+    def InitSortTest(self):
+        for i in range(6):
+             self.SortKline(i)
+
     def SortKline(self, s=0):
         """
           /
@@ -139,7 +147,8 @@ class quantMaKline():
             a = [3,2,1]
         df1 = pd.DataFrame({'A':a},index=np.arange(1,4,1))
         df1 = df1.sort_values(by="A")
-        return df1.index
+        self._SortTest[s] = df1.index
+        #return df1.index
 
     def quantma(self):
         """
@@ -218,7 +227,7 @@ class quantMaKline():
 
         masIndex = self._DataKLine.sort_values(by=mas).index
         for i in range(6):
-            up = self.SortKline(i)
+            up = self._SortTest[i]
             if masIndex.equals(up) == True and (i == 0 or i == 3):
                 return True
             elif masIndex.equals(up) == True and (i == 4 or i == 5):
@@ -254,7 +263,7 @@ class quantMaKline():
 
         maIndex = self._DataKLine.sort_values(by=ma).index
         for i in range(6):
-            up = self.SortKline(i)
+            up = self._SortTest[i]
             if maIndex.equals(up) == True and (i == 0 or i == 3):
                 return True
             elif maIndex.equals(up) == True and (i == 4 or i == 5):
@@ -303,13 +312,13 @@ class quantMaKline():
 
         maIndex = self._DataKLine.sort_values(by=ma).index
         for i in range(6):
-            up = self.SortKline(i)
+            up = self._SortTest[i]
             if maIndex.equals(up) == True and (i in il):
                 return i
 
         return -1
 
-    def order(self, code, kl, hfqk, returns, types):
+    def order(self, code,kl, hfqk, returns, types):
         """
             记录交易细则
         Parameters
@@ -320,14 +329,14 @@ class quantMaKline():
             returns:float 收益
             types:String 买卖
         """
-        bdate = kl.date.values[0]
+        bdate = hfqk.date.values[0]
         bclose = kl.close.values[0]
         bhfqclose = hfqk.close.values[0]
         mas = "ma"+str(self._mas)
         mal = "ma"+str(self._mal)
-        bmas = kl[mas].values[0]
-        bmal = kl[mal].values[0]
-        pdser = pd.Series([code, bdate, bclose, bhfqclose, bmas, bmal,returns, types],index=self._col)
+        bmas = int(hfqk[mas].values[0])
+        bmal = int(hfqk[mal].values[0])
+        pdser = pd.Series([code, bdate,bclose, bhfqclose, bmas, bmal,"%.02f%%"%returns, types],index=self._col)
         self._codema = self._codema.append(pdser,ignore_index=True)
 
     def getCodeMa510(self):
@@ -354,6 +363,7 @@ class quantMaKline():
         self._DataKLine = None
 
         kl = kPrice()
+        kprice = kl.getAllKLine(code)
         hfqprice = kl.getAllKLine(code+"_hfq")
         hfqprice["ma5"] = kl.talibMa(hfqprice, 5)
         hfqprice["ma20"] = kl.talibMa(hfqprice, 22)
@@ -372,6 +382,7 @@ class quantMaKline():
         for i in hs3t:
             nextDateIndex = hfqprice[hfqprice.date == i]
             ctmp = None
+            kDay = kprice[kprice.date == i]
 
             if len(nextDateIndex.index) > 0:
                 onlyDayK = nextDateIndex.head(1)
@@ -389,7 +400,7 @@ class quantMaKline():
 
                 if flag == True and sb == True:
                     buyList = hfqDayK
-                    self.order(code,onlyDayK, hfqDayK, 0, "buy")
+                    self.order(code,kDay, hfqDayK, 0, "buy")
 
                     sb = False
 
@@ -402,13 +413,13 @@ class quantMaKline():
                     if returns < self._loss:
 
                         sb = True
-                        self.order(code,onlyDayK, hfqDayK,returns, "sell2")
+                        self.order(code,kDay, hfqDayK,returns, "sell2")
                         creturns += returns
                         buyList = None
 
                     elif flag == False:
                         sb = True
-                        self.order(code,onlyDayK, hfqDayK,returns, "sell")
+                        self.order(code,kDay, hfqDayK,returns, "sell")
                         creturns += returns
                         buyList  = None
 
@@ -416,6 +427,6 @@ class quantMaKline():
             ctmp = buyList
             #print nextDateIndex
             rs =(nextDateIndex.close.values[0] - ctmp.close.values[0])/nextDateIndex.close.values[0]*100
-            self.order(code, nextDateIndex, nextDateIndex,rs, "buying")
+            self.order(code, kDay, nextDateIndex,rs, "buying")
 
         return creturns
