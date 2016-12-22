@@ -1,21 +1,17 @@
 #!/usr/bin/python2
 # -*- coding: utf-8 -*-
-# mongo_data
+#  trader_quant_macd
 #
-# use mongodb ma5 ma10 kline
 #
 # vim:fileencoding=utf-8:sw=4:et -*- coding: utf-8 -*-
 #
-#    alpaca trade stock
-#    当5天均线低于10天均线的时候，买入，反之卖出.
+#   macd 均线.
 #
 
 import talib
-import pandas as pd
 import sys
 import json
 
-from libs.kPrice import getAllStock
 from libs.kPrice import kPrice
 from libs.buildReturnJson import buildReturnJson as brj
 
@@ -51,6 +47,7 @@ class Macd():
 
         brjObject.db(json.dumps(macdhist.tolist()))
         brjObject.formats("bar")
+        brjObject.yIndex(1);
         brjObject.name("MACD-Histogram")
         brjObject.buildData()
 

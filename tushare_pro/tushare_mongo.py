@@ -12,6 +12,9 @@ import tushare as ts
 from time import localtime, strftime, time
 import pandas as pd
 import calendar
+import multiprocessing
+
+from emongo import emongo
 
 class pyMongodb():
     def __init__(self):
@@ -41,12 +44,12 @@ class pyMongodb():
 #        t = int(datetime.datetime.strptime('2016-09-01', '%Y-%m-%d').strftime("%s"))
 #        myDocs = conn.etomc2["stockDB"].find({"600808_hfq.date":{"$gte": t}}, {"_id":0,"600808_hfq.date":1}).sort("600808_hfq.date", pymongo.ASCENDING)
 #        print list(myDocs)
-#        NowTime = strftime("%Y-%m-%d", localtime(time()-86400))
+        TodayTime = strftime("%Y-%m-%d", localtime(time()))
 #        endTime = None
         #NowTime = strftime("%Y-%m-%d", localtime(time()))
 
-        conn = pymongo.MongoClient('192.168.1.83', port=27017)
-        sdb = conn.etomc2["stockDB"]
+        emg = emongo()
+        sdb = emg.getCollectionNames("stockDB")
         stockName = self.__code
         if self.__stockType is not None:
             stockName = self.__code+"_hfq"
@@ -55,12 +58,15 @@ class pyMongodb():
             self.__df = pd.DataFrame(ie[stockName])
             self.__id = ie['_id']
         exis = isExists.count()
-        conn.close()
+        emg.Close()
 
         if exis == 0:
             self.initKLine(self.__year, 1)
         else:
             StartTime = str(list(self.__df.date)[-1])
+            if StartTime == TodayTime:
+                return
+            #print self.__code,"==",  StartTime, "--",TodayTime
             if len(StartTime) > 0:
                 year = int(StartTime[0:4])
                 mon = int(StartTime[5:7])
@@ -96,8 +102,7 @@ class pyMongodb():
                 #return
 
     def SaveKLine(self, NowTime, endTime):
-        conn = pymongo.MongoClient('192.168.1.83', port=27017)
-        #print NowTime, endTime
+        emg = emongo()
         df = None
         if self.__stockType == None:
             df = ts.get_hist_data(self.__code,start=NowTime, end=endTime)
@@ -137,31 +142,38 @@ class pyMongodb():
             stockName = self.__code+"_hfq"
         #print stockName
         stockDB[stockName] = j
+        sdb = emg.getCollectionNames("stockDB")
         if flag:
-            conn.etomc2["stockDB"].insert(stockDB)
+            sdb.insert(stockDB)
         else:
-            conn.etomc2["stockDB"].update({"_id":{"$eq":self.__id}},
+            sdb.update({"_id":{"$eq":self.__id}},
                                                                 {"$set":  stockDB })
-        conn.close()
+        emg.Close()
 
 class getAllStock():
-    def getas(self):
+    def getas(self, types=None):
         pmdb = pyMongodb()
-        conn = pymongo.MongoClient('192.168.1.83', port=27017)
-        szCode = conn.etomc2["AllStockClass"]
+        emg = emongo()
+        szCode = emg.getCollectionNames("un800")
         codeList = list(szCode.find({},{"code":1,"_id":0}))
-        conn.close()
-
+        emg.Close()
+        print types, " is start"
+        i = 0;
         for post in codeList:
             code = post["code"]
-            #print code
             pmdb.setCode(code)
 
-            pmdb.setType(None)
+            pmdb.setType(types)
             pmdb.runKLine()
+            print "now next is:",i
+            i+=1
 
-            pmdb.setType("hfq")
-            pmdb.runKLine()
+        print types," is end"
+
+def runStock(types=None):
+    gas = getAllStock()
+    gas.getas(types)
+
 
 def main():
     if len(sys.argv) == 2:
@@ -173,8 +185,8 @@ def main():
 #            pmdb.setDay("09")
             pmdb.runKLine()
             return
-        conn = pymongo.MongoClient('192.168.1.83', port=27017)
-        sdb = conn.etomc2["AllStockClass"]
+        emg = emongo()
+        sdb = emg.getCollectionNames("AllStockClass")
         CodeIndu = sdb.find({"code":{"$eq":code}},{"_id":0}).limit(1)
         if CodeIndu.count() == 0:
             return
@@ -191,9 +203,15 @@ def main():
                 pmdb.runKLine()
     else:
         print "get all stock"
-        gas = getAllStock()
-        gas.getas()
+        try:
 
+            h = multiprocessing.Process(target = runStock, args = ("hfq",))
+            h.start()
+            n = multiprocessing.Process(target = runStock, args = ())
+            n.start()
+        except:
+            print "Error: unable to start thread"
+        print "end"
 
 if __name__ == "__main__":
     main()

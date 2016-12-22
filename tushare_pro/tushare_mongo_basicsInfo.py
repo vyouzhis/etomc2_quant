@@ -10,15 +10,17 @@ import pymongo
 import tushare as ts
 import json
 
+from emongo import emongo
+
 class pyToMongo():
     def run(self, year, month):
 
-        conn = pymongo.MongoClient('192.168.1.83', port=27017)
+
         stockDB = {}
 
         print "basics"
         basicDf = ts.get_stock_basics()
-        basicDf = basicDf.rename(columns=lambda x: x.replace('esp', 'eps'), inplace=True)
+        basicDf.rename(columns=lambda x: x.replace('esp', 'eps'), inplace=True)
         stockDB["basics"] = json.loads(basicDf.to_json(orient="index"))
 
         print "report"
@@ -75,8 +77,12 @@ class pyToMongo():
         k = str(year)+str(month)
         DT["Info"] = stockDB
         DT["ym"] = k
-        conn.etomc2["stockInfo"].insert(DT)
-        conn.close()
+
+        emg = emongo()
+        sdb = emg.getCollectionNames("stockInfo")
+
+        sdb.insert(DT)
+        emg.Close()
 
     def toJson(self,dfData):
         index = dfData.set_index(["code"]).index
@@ -89,8 +95,9 @@ class pyToMongo():
 
 def main():
     pytm = pyToMongo()
-    conn = pymongo.MongoClient('192.168.1.83', port=27017)
-    ymk = conn.etomc2["stockInfo"].find({},{"ym":1,"_id":0}).sort("ym", pymongo.DESCENDING).limit(1)
+    emg = emongo()
+    sdb = emg.getCollectionNames("stockInfo")
+    ymk = sdb.find({},{"ym":1,"_id":0}).sort("ym", pymongo.DESCENDING).limit(1)
     if ymk.count() == 0:
         pytm.run(2013, 1)
     else:
@@ -104,6 +111,7 @@ def main():
                 m = 1
             print y,"_",m
             pytm.run(y, m)
+    emg.Close()
 
 if __name__ == "__main__":
     for i in range(5):

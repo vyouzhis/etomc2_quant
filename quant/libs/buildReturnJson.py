@@ -13,12 +13,14 @@
 #    "data": [
 #        {
 #            "format": "line",　　//  图像 line 线
+#            "yIndex": "0",　　//  刻度方位，０　左边，１右边
 #            "db": "list",　　　　 // 数组
 #            "date": "list",  // 时间数组，可为空
 #            "name": "db name" //　名字
 #        },
 #        {
 #             "format": "bar",　　//  图像 bar 线
+#            "yIndex": "0",　　//  刻度方位，０　左边，１右边
 #            "db": "list",　　　　 // 数组
 #            "date": "list",  // 时间数组，可为空
 #            "name": "db name" //　名字
@@ -40,6 +42,7 @@ class buildReturnJson():
         self._rawma = 0
         self._data = []
         self._format = "table"
+        self._yIndex = 0
         self._db = None
         self._name = None
         self._date = None
@@ -63,6 +66,9 @@ class buildReturnJson():
             f:String 　 table　line bar
         """
         self._format = f
+
+    def yIndex(self, y):
+        self._yIndex = y
 
     def date(self, l):
         """
@@ -95,6 +101,7 @@ class buildReturnJson():
         """
         data = {}
         data["format"] = self._format
+        data["yIndex"] = self._yIndex
         data["db"] = self._db
 
         if self._date is not None:

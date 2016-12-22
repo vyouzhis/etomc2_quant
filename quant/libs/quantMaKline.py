@@ -37,6 +37,9 @@ class quantMaKline():
 
         self.InitSortTest()
 
+    def getSortList(self):
+        return self._SortTest
+
     def setDataKLine(self, dk):
         """
             设置K线保存数据
@@ -364,7 +367,13 @@ class quantMaKline():
 
         kl = kPrice()
         kprice = kl.getAllKLine(code)
+        if kprice is None:
+            print code, " is None"
+            return
         hfqprice = kl.getAllKLine(code+"_hfq")
+        if hfqprice is None:
+            print code, " hfq is None"
+            return
         hfqprice["ma5"] = kl.talibMa(hfqprice, 5)
         hfqprice["ma20"] = kl.talibMa(hfqprice, 22)
 
