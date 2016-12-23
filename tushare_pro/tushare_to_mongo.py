@@ -13,6 +13,7 @@ import pandas as pd
 import tushare as ts
 from time import localtime, strftime, time
 import pymongo
+import multiprocessing
 
 from emongo import emongo
 
@@ -77,9 +78,8 @@ class TTM():
             stockDB[stockName] = j
             sdb.insert(stockDB)
         else:
-
-            self._df.append(df)
-            self._df = self._df.drop_duplicates(subset=['date'], keep=False)
+            self._df = self._df.append(df.head(20))
+            self._df = self._df.drop_duplicates()
             cjson = self._df.sort_values(by="date").to_json(orient="records")
             j = json.loads(cjson)
             stockDB[stockName] = j
@@ -148,11 +148,10 @@ def main():
             ttm.IsExists()
             return
         gas = getAllStock()
-        gas.getas("hfq")
+        gas.getas()
     else:
         print "get all stock"
         try:
-
             h = multiprocessing.Process(target = runStock, args = ("hfq",))
             h.start()
             n = multiprocessing.Process(target = runStock, args = ())
