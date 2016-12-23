@@ -121,7 +121,8 @@ class GodMACDMA():
     def SellAction(self,row):
         hline = self._HFQKline[self._HFQKline.date == row.date]
         gs = (hline.close - self._GodValInit)/row.close * 100
-        print "rclose:%.02f, mclose:%.02f gs:%.02f date:%s"%(hline.close, self._GodValInit,gs, row.date)
+        print hline.close.values[0]
+#        print "rclose:%s, mclose:%s gs:%s date:%s"%(hline.close.values[0], self._GodValInit, gs, row.date)
         #if row.close > minClose.close:
         #    print "s"
         #else:
