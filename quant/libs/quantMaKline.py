@@ -368,7 +368,7 @@ class quantMaKline():
         kl = kPrice()
         kprice = kl.getAllKLine(code)
         if kprice is None:
-            print code, " is None"
+            #print code, " is None"
             return
         hfqprice = kl.getAllKLine(code+"_hfq")
         if hfqprice is None:

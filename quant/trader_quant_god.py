@@ -10,12 +10,13 @@
 #      黄金分割线的实战运用主要集中在两个方面，一个是利用股价回调和反弹的幅度来预测股价运行趋势，另一个则是判断股价的回调支撑区和反弹压力区。
 #
 
-import pymongo
 import pandas as pd
 import sys
 from time import localtime, strftime, time
 import datetime
+
 from libs.kPrice import kPrice
+from libs.buildReturnJson import buildReturnJson as brj
 
 def getStockKline(code):
 
@@ -91,6 +92,7 @@ def getCode(code):
 
 def GodStock(code, hfqTime):
     gs = [0.191,0.382,0.5,0.618,0.809]
+    godBaseList = [0.019,0.038,0.05,0.0618,0.0809,0.191,0.382,0.5,0.618,0.809]
     dpress = 0.854
     kp = kPrice()
     kline = kp.getOrderDateKLine(code, hfqTime, 12)
@@ -137,12 +139,85 @@ def GodStock(code, hfqTime):
     else:
         return lp
 
+
+class QuantGod():
+    def __init__(self):
+        self._GodList = [0.019,0.038,0.05,0.0618,0.0809,0.191,0.382]
+        self._Code = ""
+        self._GodSplit=[30,60,90]
+        self._col = ["basePrice", "godPrice","god"]
+
+        self._sdate = ""
+
+        self._brjObject = brj()
+        self._brjObject.RawMa(0)
+        self._brjName = ""
+
+    def SetCode(self,c):
+        self._Code = c
+
+    def SetDate(self, d):
+        self._sdate = d
+
+    def Split(self, price, pn):
+
+        df = pd.DataFrame(columns=self._col)
+        for g in self._GodList:
+            pg = g
+            if pn == 1:
+                pg = 0 - g
+            gk = price*(1+pg)
+            pdser = pd.Series([price, gk, pg],index=self._col)
+            df = df.append(pdser,ignore_index=True)
+        json = df.to_json(orient="split")
+        self._brjObject.db(json)
+        self._brjObject.formats("table")
+        self._brjObject.name(self._brjName)
+        self._brjObject.buildData()
+
+    def Run(self):
+
+        kp = kPrice()
+        kline = kp.getAllKLine(self._Code)
+        if kline is None:
+            return
+
+        if self._sdate == "":
+            kl = kline.tail(1)
+        else:
+            kl = kline[kline.date == self._sdate]
+
+        self._brjName = str(kl.date.values[0]) + " 起点"
+        self.par(kl.close.values[0])
+
+        for m in self._GodSplit:
+            self._brjName = str(m)+" 天平均线"
+            kgl = kline[kline.index > kl.index.values[0]-m]
+            pgl = kgl.head(m).close.values.mean()
+            self.par(pgl)
+
+        bjson = self._brjObject.getResult()
+        print bjson
+
+    def par(self, kl):
+
+        for n in range(0,2):
+
+            self.Split(kl, n)
+
 def main():
 
-    if(len(sys.argv) == 2):
+    if(len(sys.argv) >= 2):
         code = sys.argv[1]
-        getStockKline(code)
-        #print "2"
+        qg = QuantGod()
+        qg.SetCode(code)
+
+        if len(sys.argv) == 3:
+            date = sys.argv[2]
+            qg.SetDate(date)
+
+        qg.Run()
+
     else:
         print "3"
 

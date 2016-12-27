@@ -18,10 +18,18 @@ class kPrice():
         self.__sdb = self.__conn.etomc2["stockDB"]
 
     def getAllKLine(self,code):
-
+        """
+            获取某一个时间的K 线
+        Parameters
+        ---------
+            code:String 代码
+        Return
+        -------
+            DataFrame
+        """
         KL = []
         for post in self.__sdb.find({code: {'$exists':1}},{code:1,'_id':0}):
-            KL = KL+post[code]
+            KL = post[code]
         if len(KL) == 0:
             return None
         mdf = pd.DataFrame(KL)
@@ -59,14 +67,10 @@ class kPrice():
         -------
             DataFrame
         """
-        KL = []
-        for post in self.__sdb.find({code+".date":{"$gte":oby}},{"_id":0}).sort(code+".date", pymongo.ASCENDING).limit(lmt):
-            KL = KL+post[code]
-        if len(KL) == 0:
-            return None
-        mdf = pd.DataFrame(KL)
-        mdf = mdf.sort_values(by="date")
-        return mdf
+
+        mdf = self.getAllKLine(code)
+
+        return mdf.sort_values(by=oby).tail(lmt)
 
     def HS300Time(self,nextTime = None):
         """

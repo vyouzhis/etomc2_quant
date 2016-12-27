@@ -1,11 +1,11 @@
 #!/usr/bin/python2
 # -*- coding: utf-8 -*-
-#  trader_quant_macd
+#  trader_quant_stoch
 #
 #
 # vim:fileencoding=utf-8:sw=4:et -*- coding: utf-8 -*-
 #
-#   macd 均线.
+#   KDJ 线.
 #
 
 import talib
@@ -15,14 +15,17 @@ import json
 from libs.kPrice import kPrice
 from libs.buildReturnJson import buildReturnJson as brj
 
-class Macd():
+class KDJ_STOCH():
     def __init__(self):
         self._Code = ""
 
-    def getCode(self, c):
+    def SetCode(self, c):
         self._Code = c
-        kps = kPrice()
-        kline = kps.getAllKLine(c)
+
+    def stoch(self):
+        kp = kPrice()
+        kline = kp.getAllKLine(self._Code)
+
         inputs = {
             'open': kline.open.values,
             'high': kline.high.values,
@@ -30,38 +33,35 @@ class Macd():
             'close': kline.close.values,
             'volume': kline.volume.values
         }
-        tmacd,macdsing,macdhist = talib.abstract.MACD(inputs)
+        slowk, slowd = talib.abstract.STOCH(inputs, 5, 3, 0, 3, 0)
 
         brjObject = brj()
         brjObject.RawMa(1)
 
-        brjObject.db(json.dumps(tmacd.tolist()))
+        brjObject.db(json.dumps(slowk.tolist()))
         brjObject.formats("line")
-        brjObject.name("macd")
+        brjObject.name("slowk")
         brjObject.buildData()
 
-        brjObject.db(json.dumps(macdsing.tolist()))
+        brjObject.db(json.dumps(slowd.tolist()))
         brjObject.formats("line")
-        brjObject.name("signal Line")
-        brjObject.buildData()
-
-        brjObject.db(json.dumps(macdhist.tolist()))
-        brjObject.formats("bar")
         brjObject.yIndex(1);
-        brjObject.name("MACD-Histogram")
+        brjObject.name("slowd")
         brjObject.buildData()
 
         bjson = brjObject.getResult()
         print bjson
 
-
 def main(c):
-    macd = Macd()
-    macd.getCode(c)
+    ks = KDJ_STOCH()
+    ks.SetCode(c)
+    ks.stoch()
 
 if __name__ == "__main__":
     if(len(sys.argv) == 2):
         code = sys.argv[1]
+
         main(code)
+        #print clist
     else:
         print "2"

@@ -38,6 +38,15 @@ class GodMACDMA():
         self._col = ["code","date", "close","hfqclose", "returns","type"]
         self._Returns = pd.DataFrame(columns=self._col)
 
+    def InitVal(self):
+        self._HFQKline = None
+        self._Kline = None
+        self._MACDHistogram = []
+
+        self._md50 = []
+        self._md20 = []
+        self._BuyFlag = False
+
     def SetCodeList(self, l):
         self._CodeList = l
 
@@ -74,10 +83,10 @@ class GodMACDMA():
             if f == 0:
                 self.GodValueInit(row)
 
-            if f == -1 and self._BuyFlag:
-                self.SellAction(row);
+            #if f == -1 and self._BuyFlag:
+            #    self.SellAction(row);
 
-        print self._Returns
+        #print self._Returns
 
     def BuyAction(self, row, i):
         if self._BuyFlag == True:
@@ -98,17 +107,22 @@ class GodMACDMA():
 
         if maFlag:
             mh = self._MACDHistogram[i-3:i]
-            if mh[2]>mh[1] and mh[1]>mh[0]:
+            if str(mh[0]).lower() == 'nan':
+                return 1
 
-                hclose = self._HFQKline[self._HFQKline.date == row.date].close.values[0]
+            if mh[2]>mh[1] and mh[1]>mh[0]:
+                hfqline = self._HFQKline[self._HFQKline.date == row.date]
+                if hfqline.close.count() == 0:
+                    print self._CurrentCode, "hfq error"
+                    return 1
+
+                hclose = hfqline.close.values[0]
                 pdser = pd.Series([self._CurrentCode, row.date,row.close,hclose,
                                     "0", "buy"],index=self._col)
                 self._Returns = self._Returns.append(pdser,ignore_index=True)
                 self._BuyFlag = True
                 self._GodValInit = 0
                 return 0
-            else:
-                print "no:",row.date
 
         return 1
 
@@ -133,19 +147,24 @@ class GodMACDMA():
         kps = kPrice()
         self._HFQKline = kps.getAllKLine(c+"_hfq")
         if self._HFQKline is None:
-            print c
+            print "error hfq",c
             return
+        self._HFQKline = self._HFQKline.tail(120)
         self._Kline = kps.getAllKLine(c)
         if self._Kline is None:
-            print c
+            print "error ",c
             return
+        self._Kline = self._Kline.tail(120)
 
     def run(self):
         for c in self._CodeList:
+            self.InitVal()
             self._CurrentCode = c["code"]
             self.GetKLine(c["code"])
             self.macdLister()
             self.Loop()
+
+        print self._Returns.sort_values(by="date").tail(10)
 
 def main(c):
     macdall = GodMACDMA()
