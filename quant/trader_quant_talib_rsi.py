@@ -8,14 +8,14 @@
 #   obv.
 #
 
-import talib
 import sys
 import json
 
 from libs.kPrice import kPrice
 from libs.buildReturnJson import buildReturnJson as brj
+from libs.QTaLib import QTaLib
 
-class OBV():
+class RSI():
     def __init__(self):
         self._Code = ""
 
@@ -28,32 +28,27 @@ class OBV():
         length = len(kline.close.values)
         kline = kp.getAllKLine(self._Code+"_hfq")
         lenhfq = len(kline.close.values)
-        close = kline.close.values
-        volume = kline.volume.values
 
-        obvReal = talib.OBV(close, volume)
+        qtl = QTaLib()
+        qtl.SetFunName("RSI")
+        qtl.SetKline(kline)
+
+        rsiReal= qtl.Run()
 
         brjObject = brj()
 
-        brjObject.db(json.dumps(obvReal[lenhfq-length:].tolist()))
+        brjObject.db(json.dumps(rsiReal[lenhfq-length:].tolist()))
         brjObject.formats("line")
-        brjObject.name("OBV")
+        brjObject.name("RSI")
         brjObject.buildData()
 
-        brjObject.db(json.dumps(volume[lenhfq-length:].tolist()))
-        brjObject.formats("bar")
-        brjObject.yIndex(1)
-        brjObject.name("Volume")
-        brjObject.buildData()
         brjJson = brjObject.getResult()
-
         print brjJson
 
-
 def main(c):
-    obv = OBV()
-    obv.SetCode(c)
-    obv.run()
+    rsi = RSI()
+    rsi.SetCode(c)
+    rsi.run()
 
 if __name__ == "__main__":
     if(len(sys.argv) == 2):

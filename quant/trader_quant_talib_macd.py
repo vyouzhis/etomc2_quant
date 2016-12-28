@@ -8,12 +8,12 @@
 #   macd 均线.
 #
 
-import talib
 import sys
 import json
 
 from libs.kPrice import kPrice
 from libs.buildReturnJson import buildReturnJson as brj
+from libs.QTaLib import QTaLib
 
 class Macd():
     def __init__(self):
@@ -23,14 +23,13 @@ class Macd():
         self._Code = c
         kps = kPrice()
         kline = kps.getAllKLine(c)
-        inputs = {
-            'open': kline.open.values,
-            'high': kline.high.values,
-            'low': kline.low.values,
-            'close': kline.close.values,
-            'volume': kline.volume.values
-        }
-        tmacd,macdsing,macdhist = talib.abstract.MACD(inputs)
+        qtl = QTaLib()
+        qtl.SetFunName("MACD")
+        qtl.SetKline(kline)
+
+        res = qtl.Run()
+
+        tmacd,macdsing,macdhist = res
 
         brjObject = brj()
         brjObject.RawMa(1)

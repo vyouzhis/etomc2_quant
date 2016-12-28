@@ -8,12 +8,12 @@
 #   KDJ 线.
 #
 
-import talib
 import sys
 import json
 
 from libs.kPrice import kPrice
 from libs.buildReturnJson import buildReturnJson as brj
+from libs.QTaLib import QTaLib
 
 class KDJ_STOCH():
     def __init__(self):
@@ -26,14 +26,11 @@ class KDJ_STOCH():
         kp = kPrice()
         kline = kp.getAllKLine(self._Code)
 
-        inputs = {
-            'open': kline.open.values,
-            'high': kline.high.values,
-            'low': kline.low.values,
-            'close': kline.close.values,
-            'volume': kline.volume.values
-        }
-        slowk, slowd = talib.abstract.STOCH(inputs, 5, 3, 0, 3, 0)
+        qtl = QTaLib()
+        qtl.SetFunName("STOCH")
+        qtl.SetKline(kline)
+
+        slowk, slowd = qtl.Run()
 
         brjObject = brj()
         brjObject.RawMa(1)

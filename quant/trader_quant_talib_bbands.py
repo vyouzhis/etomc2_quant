@@ -8,13 +8,12 @@
 #   BBANDS 线.
 #
 
-import talib
 import sys
 import json
-import pandas as pd
 
 from libs.kPrice import kPrice
 from libs.buildReturnJson import buildReturnJson as brj
+from libs.QTaLib import QTaLib
 
 class BBANDS():
     def __init__(self):
@@ -29,10 +28,12 @@ class BBANDS():
         length = len(kline.close.values)
         kline = kp.getAllKLine(self._Code+"_hfq")
         lenhfq = len(kline.close.values)
-        close = kline.close.values
 
-        tp = 20
-        upperband, middleband, lowerband = talib.BBANDS(close, timeperiod=tp, nbdevup=2, nbdevdn=2, matype=0)
+        qtl = QTaLib()
+        qtl.SetFunName("BBANDS")
+        qtl.SetKline(kline)
+
+        upperband, middleband, lowerband = qtl.Run()
 
         brjObject = brj()
         brjObject.RawMa(0)
@@ -48,7 +49,7 @@ class BBANDS():
         brjObject.formats("line")
         brjObject.isExt(1)
         brjObject.yIndex(1)
-        brjObject.name(str(tp)+"-day SMA")
+        brjObject.name("5-day SMA")
         brjObject.buildData()
 
         brjObject.db(json.dumps(lowerband[lenhfq-length:].tolist()))

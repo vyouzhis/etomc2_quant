@@ -8,13 +8,13 @@
 #   ATR 线.
 #
 
-import talib
 import sys
 import json
 import pandas as pd
 
 from libs.kPrice import kPrice
 from libs.buildReturnJson import buildReturnJson as brj
+from libs.QTaLib import QTaLib
 
 class ATR():
     def __init__(self):
@@ -29,7 +29,13 @@ class ATR():
         length = len(kline.close.values)
         kline = kp.getAllKLine(self._Code+"_hfq")
         lenhfq = len(kline.close.values)
-        atr = talib.ATR(kline.high.values, kline.low.values, kline.close.values, timeperiod=14)
+
+        qtl = QTaLib()
+        qtl.SetFunName("ATR")
+        qtl.SetKline(kline)
+
+        atr = qtl.Run()
+
         atr = atr[lenhfq-length:]
         o = json.dumps(atr.tolist())
 

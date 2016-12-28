@@ -115,8 +115,8 @@ class getAllStock():
     def getas(self, t=None):
 
         emg = emongo()
-#        cname = "AllStockClass"
-        cname = "un800"
+        cname = "AllStockClass"
+#        cname = "un800"
         szCode = emg.getCollectionNames(cname)
         codeList = list(szCode.find({},{"code":1,"_id":0}))
         emg.Close()
