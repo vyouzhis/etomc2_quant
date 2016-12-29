@@ -8,15 +8,13 @@
 #   pr.
 #
 
-import talib
-from talib import abstract
-
 import sys
 import json
 import numpy as np
 
 from libs.kPrice import kPrice
 from libs.buildReturnJson import buildReturnJson as brj
+from libs.QTaLib import QTaLib
 
 class PR():
     def __init__(self):
@@ -36,21 +34,23 @@ class PR():
         kline = kp.getAllKLine(self._Code+"_hfq")
         lenhfq = len(kline.close.values)
 
-        inputs = {
-            'open': kline.open.values,
-            'high': kline.high.values,
-            'low': kline.low.values,
-            'close': kline.close.values,
-            'volume': kline.volume.values
-        }
-        res = None
+        qtl = QTaLib()
+        qtl.SetFunName(self._i)
+        qtl.SetKline(kline)
 
-        fun = abstract.Function(self._i)
-        res = fun(inputs)
-        a = res[0]
-        a[np.isnan(a)] = 0
-        print a[:20]
+        tpr = qtl.Run()
 
+        tpr = tpr[lenhfq-length:]
+        brjObject = brj()
+        brjObject.RawMa(1)
+
+        brjObject.db(json.dumps(tpr.tolist()))
+        brjObject.formats("bar")
+        brjObject.name(self._i)
+        brjObject.buildData()
+
+        bjson = brjObject.getResult()
+        print bjson
 
 def main(c, i):
     pr = PR()

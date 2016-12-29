@@ -45,8 +45,10 @@ class QTaLib():
             'close': self._KLine.close.values,
             'volume': self._KLine.volume.values
         }
-
-        fun = abstract.Function(self._FunName)
+        try:
+            fun = abstract.Function(self._FunName)
+        except:
+            return None
         res = fun(inputs)
         if type(res) is list:
             for o in range(len(res)):

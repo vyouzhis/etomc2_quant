@@ -69,7 +69,6 @@ def main():
 #            json = sdf.sort_values(by="收益率").to_json(orient="split")
 
             brjObject = brj()
-            brjObject.RawMa(1)
             brjObject.db(json)
             brjObject.formats("table")
             brjObject.name("fama")

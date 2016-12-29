@@ -18,13 +18,22 @@ from libs.QTaLib import QTaLib
 class Macd():
     def __init__(self):
         self._Code = ""
+        self._m = ""
+
+    def SetM(self, m):
+        self._m = m
 
     def getCode(self, c):
         self._Code = c
-        kps = kPrice()
-        kline = kps.getAllKLine(c)
+
+        kp = kPrice()
+        kline = kp.getAllKLine(self._Code)
+        length = len(kline.close.values)
+        kline = kp.getAllKLine(self._Code+"_hfq")
+        lenhfq = len(kline.close.values)
+
         qtl = QTaLib()
-        qtl.SetFunName("MACD")
+        qtl.SetFunName(self._m)
         qtl.SetKline(kline)
 
         res = qtl.Run()
@@ -34,17 +43,17 @@ class Macd():
         brjObject = brj()
         brjObject.RawMa(1)
 
-        brjObject.db(json.dumps(tmacd.tolist()))
+        brjObject.db(json.dumps(tmacd[lenhfq-length:].tolist()))
         brjObject.formats("line")
-        brjObject.name("macd")
+        brjObject.name(self._m)
         brjObject.buildData()
 
-        brjObject.db(json.dumps(macdsing.tolist()))
+        brjObject.db(json.dumps(macdsing[lenhfq-length:].tolist()))
         brjObject.formats("line")
         brjObject.name("signal Line")
         brjObject.buildData()
 
-        brjObject.db(json.dumps(macdhist.tolist()))
+        brjObject.db(json.dumps(macdhist[lenhfq-length:].tolist()))
         brjObject.formats("bar")
         brjObject.yIndex(1);
         brjObject.name("MACD-Histogram")
@@ -54,13 +63,15 @@ class Macd():
         print bjson
 
 
-def main(c):
+def main(c, m):
     macd = Macd()
+    macd.SetM(m)
     macd.getCode(c)
 
 if __name__ == "__main__":
-    if(len(sys.argv) == 2):
-        code = sys.argv[1]
-        main(code)
+    if(len(sys.argv) == 3):
+        code = sys.argv[2]
+        i = sys.argv[1]
+        main(code, i)
     else:
         print "2"

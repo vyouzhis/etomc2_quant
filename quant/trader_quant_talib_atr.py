@@ -19,9 +19,13 @@ from libs.QTaLib import QTaLib
 class ATR():
     def __init__(self):
         self._Code = ""
+        self._a = ""
 
     def SetCode(self, c):
         self._Code = c
+
+    def SetA(self, a):
+        self._a = a
 
     def run(self):
         kp = kPrice()
@@ -31,11 +35,11 @@ class ATR():
         lenhfq = len(kline.close.values)
 
         qtl = QTaLib()
-        qtl.SetFunName("ATR")
+        qtl.SetFunName(self._a)
         qtl.SetKline(kline)
 
         atr = qtl.Run()
-
+        print atr
         atr = atr[lenhfq-length:]
         o = json.dumps(atr.tolist())
 
@@ -44,7 +48,7 @@ class ATR():
 
         brjObject.db(o)
         brjObject.formats("line")
-        brjObject.name("ATR")
+        brjObject.name(self._a)
         brjObject.buildData()
 
         cp = kline.tail(1)
@@ -79,16 +83,17 @@ class ATR():
         print bjson
 
 
-def main(c):
+def main(c, a):
     ks = ATR()
     ks.SetCode(c)
+    ks.SetA(a)
     ks.run()
 
 if __name__ == "__main__":
-    if(len(sys.argv) == 2):
-        code = sys.argv[1]
-
-        main(code)
+    if(len(sys.argv) == 3):
+        code = sys.argv[2]
+        a = sys.argv[1]
+        main(code, a)
         #print clist
     else:
         print "2"

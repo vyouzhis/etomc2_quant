@@ -1,11 +1,11 @@
 #!/usr/bin/python2
 # -*- coding: utf-8 -*-
-#  trader_quant_stoch
+#  trader_quant_talib_cycle_indicator
 #
 #
 # vim:fileencoding=utf-8:sw=4:et -*- coding: utf-8 -*-
 #
-#   KDJ 线.
+#    cycle_indicator.
 #
 
 import sys
@@ -15,19 +15,18 @@ from libs.kPrice import kPrice
 from libs.buildReturnJson import buildReturnJson as brj
 from libs.QTaLib import QTaLib
 
-class KDJ_STOCH():
+class CI():
     def __init__(self):
         self._Code = ""
-        self._s = ""
+        self._o = ""
 
     def SetCode(self, c):
         self._Code = c
 
-    def SetS(self, s):
-        self._s = s
+    def SetO(self, o):
+        self._o = o
 
-    def stoch(self):
-
+    def run(self):
         kp = kPrice()
         kline = kp.getAllKLine(self._Code)
         length = len(kline.close.values)
@@ -35,45 +34,44 @@ class KDJ_STOCH():
         lenhfq = len(kline.close.values)
 
         qtl = QTaLib()
-        qtl.SetFunName(self._s)
+        qtl.SetFunName(self._o)
         qtl.SetKline(kline)
 
-        slowk, slowd = qtl.Run()
-
+        v1,v2 = qtl.Run()
         brjObject = brj()
-        brjObject.RawMa(1)
 
-        name1 = "slowk"
-        name2 = "slowd"
-        if self._s != "STOCH":
-            name1 = "fastk"
-            name2 = "fastd"
+        name1 = "inphase"
+        name2 = "quadrature"
+        if self._o != "HT_SINE":
+            name1 = "sine"
+            name2 = "leadsine"
 
-        brjObject.db(json.dumps(slowk[lenhfq-length:].tolist()))
+        brjObject.db(json.dumps(v1[lenhfq-length:].tolist()))
         brjObject.formats("line")
         brjObject.name(name1)
         brjObject.buildData()
 
-        brjObject.db(json.dumps(slowd[lenhfq-length:].tolist()))
+        brjObject.db(json.dumps(v2[lenhfq-length:].tolist()))
         brjObject.formats("line")
         brjObject.yIndex(1);
         brjObject.name(name2)
         brjObject.buildData()
 
-        bjson = brjObject.getResult()
-        print bjson
+        brjJson = brjObject.getResult()
 
-def main(c, m):
-    ks = KDJ_STOCH()
-    ks.SetCode(c)
-    ks.SetS(m)
-    ks.stoch()
+        print brjJson
+
+
+def main(c, o):
+    ci = CI()
+    ci.SetCode(c)
+    ci.SetO(o)
+    ci.run()
 
 if __name__ == "__main__":
-
     if(len(sys.argv) == 3):
         code = sys.argv[2]
-        i = sys.argv[1]
-        main(code, i)
+        o = sys.argv[1]
+        main(code, o)
     else:
         print "2"

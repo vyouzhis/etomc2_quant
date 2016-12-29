@@ -10,7 +10,7 @@ import tushare as ts
 import pymongo
 import json
 from time import localtime, strftime, time
-
+from emongo import emongo
 
 df = ts.get_latest_news(top=50,show_content=True)
 ndf = df[~(df.url.str.match(".*jsy", as_indexer=True))]

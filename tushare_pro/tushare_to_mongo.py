@@ -142,9 +142,10 @@ def runStock(types=None):
 def main():
     if len(sys.argv) == 2:
         code = sys.argv[1]
-        if code == "hs300":
+        hs = ["hs300","sh","sz","sz50"]
+        if code in hs:
             ttm = TTM()
-            ttm.setCode("hs300")
+            ttm.setCode(code)
             ttm.IsExists()
             return
         gas = getAllStock()

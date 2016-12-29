@@ -150,7 +150,6 @@ class QuantGod():
         self._sdate = ""
 
         self._brjObject = brj()
-        self._brjObject.RawMa(0)
         self._brjName = ""
 
     def SetCode(self,c):
