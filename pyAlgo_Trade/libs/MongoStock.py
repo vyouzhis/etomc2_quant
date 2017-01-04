@@ -10,7 +10,6 @@ from pyalgotrade.barfeed import membf
 from pyalgotrade import bar
 from pyalgotrade.utils import dt
 
-import pandas as pd
 import time
 
 from libs.kPrice import kPrice
@@ -22,20 +21,19 @@ class MonSQLDatabase(dbfeed.Database):
     def getBars(self, instrument, timezone=None, fromDateTime=None, toDateTime=None):
         kp = kPrice()
         kline = kp.getAllKLine(instrument)
-        khfq = kp.getAllKLine(instrument+"_hfq")
-
-        khfq = khfq[khfq.date >= kline.head(1).date.values[0]]
+        kline =  kline.tail(300)
         ret = []
-        kline["AdjClose"] = khfq.reset_index().close
 
         for row in kline.itertuples():
             dateTime = row.date
             TimeStamp = time.mktime(time.strptime(dateTime,'%Y-%m-%d'))
             OdateTime = dt.timestamp_to_datetime(TimeStamp)
-            print row.close, row.AdjClose, row.date
+            #print float(row.high)
+            #print "close:%s adjclose:%s high:%s low:%s date:%s "%(row.close, row.AdjClose,row.high,row.low, row.date)
             ret.append(bar.BasicBar(OdateTime, row.open, row.high,
                                     row.low, row.close, row.volume,
-                                    row.AdjClose, bar.Frequency.DAY))
+                                    row.close,
+                                    bar.Frequency.DAY))
 
         self.__df = kline
 

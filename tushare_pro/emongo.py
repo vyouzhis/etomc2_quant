@@ -15,11 +15,16 @@ class emongo():
         self._IP="192.168.1.83"
         self._Port=27017
         self._conn = None
+        self._sdb = None
 
     def getCollectionNames(self, name):
         self._conn = pymongo.MongoClient(self._IP, port=self._Port)
-        sdb = self._conn.etomc2[name]
-        return sdb
+        self._sdb = self._conn.etomc2[name]
+        return self._sdb
+
+    def remove(self, code):
+        res = self._sdb.delete_many({code:{"$exists":1}})
+        print res.deleted_count
 
     def Close(self):
         self._conn.close()

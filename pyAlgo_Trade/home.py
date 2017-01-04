@@ -17,10 +17,12 @@ from pyalgotrade.technical import rsi
 #from pyalgotrade.utils import dt
 from pyalgotrade.stratanalyzer import returns
 from pyalgotrade.stratanalyzer import sharpe
+from pyalgotrade.stratanalyzer import drawdown
 from pyalgotrade.technical import cross
 from pyalgotrade.stratanalyzer import trades
 from pyalgotrade.utils import stats
 from pyalgotrade.technical import bollinger
+from pyalgotrade.stratanalyzer import trades
 
 from pandas import DataFrame
 import numpy as np
@@ -52,7 +54,7 @@ class MyStrategy(strategy.BacktestingStrategy):
 
     def EchoDF(self):
         print self.__msdf.tail(30)
-        print self.__msdf.returns.sum()
+        #print self.__msdf.returns.sum()
 
     def onEnterOk(self, position):
         execInfo = position.getEntryOrder().getExecutionInfo()
@@ -61,7 +63,7 @@ class MyStrategy(strategy.BacktestingStrategy):
         self.__buyTime = execInfo.getDateTime()
 
     def onEnterCanceled(self, position):
-        self.info("onEnterCanceled")
+        #self.info("onEnterCanceled")
         self.__position = None
 
     def onExitOk(self, position):
@@ -78,12 +80,6 @@ class MyStrategy(strategy.BacktestingStrategy):
     def onExitCanceled(self, position):
         self.info("onExitCanceled")
         self.__position.exitMarket()
-
-    def marketOrder(self, instrument, quantity, onClose=False, goodTillCanceled=False, allOrNone=False):
-        self.info("%s  %s"%(instrument, quantity))
-
-    def getFilled(self):
-        print self.getBroker().getPositions()
 
     def onBars(self, bars):
         """
@@ -113,14 +109,10 @@ class MyStrategy(strategy.BacktestingStrategy):
 
         bar = bars[self.__instrument]
 
-        print("close %s  %s %s" % (bar.getClose(), bar.getAdjClose(), bar.getDateTime()))
-
         if shares == 0 and bar.getClose() < lower:
             sharesToBuy = int(self.getBroker().getCash(False) / bar.getClose())
-            self.marketOrder(self.__instrument, sharesToBuy)
             self.__position = self.enterLong(self.__instrument, sharesToBuy, False)
         elif shares > 0 and bar.getClose() > upper:
-            self.marketOrder(self.__instrument, -1*shares)
             self.__position.exitMarket()
 
 
@@ -134,25 +126,79 @@ def main(i, code):
     retAnalyzer = returns.Returns()
     myStrategy.attachAnalyzer(retAnalyzer)
     sharpeRatioAnalyzer = sharpe.SharpeRatio()
+    drawDownAnalyzer = drawdown.DrawDown()
     myStrategy.attachAnalyzer(sharpeRatioAnalyzer)
+    myStrategy.attachAnalyzer(drawDownAnalyzer)
 
+    tradesAnalyzer = trades.Trades()
+    myStrategy.attachAnalyzer(tradesAnalyzer)
 
     myStrategy.run()
-    #print(("Final portfolio value: $%.2f" % myStrategy.getBroker().getEquity()))
-    #print "Final portfolio value: $%.2f" % myStrategy.getResult()
-    myStrategy.EchoDF()
-    myStrategy.getFilled()
 
+#交易过程
+    myStrategy.EchoDF()
+
+#总资产
     print "Final portfolio value: $%.2f" % myStrategy.getResult()
+#累计收益率
     print "Anual return: %.2f %%" % (retAnalyzer.getCumulativeReturns()[-1] * 100)
+#    平均收益率
     print "Average daily return: %.2f %%" % (stats.mean(retAnalyzer.getReturns()) * 100)
+#方差收益率
     print "Std. dev. daily return: %.4f" % (stats.stddev(retAnalyzer.getReturns()))
+#夏普比率
     print "Sharpe ratio: %.2f" % (sharpeRatioAnalyzer.getSharpeRatio(0))
+#最大回撤
+    print "DrawDown : %.2f" % (drawDownAnalyzer.getMaxDrawDown())
+
+    print "++++++++++"
+#总交易笔数
+    print("Total trades: %d" % (tradesAnalyzer.getCount()))
+    if tradesAnalyzer.getCount() > 0:
+        profits = tradesAnalyzer.getAll()
+        print("Avg. profit: $%2.f" % (profits.mean()))
+        print("Profits std. dev.: $%2.f" % (profits.std()))
+        print("Max. profit: $%2.f" % (profits.max()))
+        print("Min. profit: $%2.f" % (profits.min()))
+        returns_trade = tradesAnalyzer.getAllReturns()
+        print("Avg. return: %2.f %%" % (returns_trade.mean() * 100))
+        print("Returns std. dev.: %2.f %%" % (returns_trade.std() * 100))
+        print("Max. return: %2.f %%" % (returns_trade.max() * 100))
+        print("Min. return: %2.f %%" % (returns_trade.min() * 100))
+
+#盈利笔数
+    print("------")
+    print("Profitable trades: %d" % (tradesAnalyzer.getProfitableCount()))
+    if tradesAnalyzer.getProfitableCount() > 0:
+        profits = tradesAnalyzer.getProfits()
+        print("Avg. profit: $%2.f" % (profits.mean()))
+        print("Profits std. dev.: $%2.f" % (profits.std()))
+        print("Max. profit: $%2.f" % (profits.max()))
+        print("Min. profit: $%2.f" % (profits.min()))
+        returns_trade = tradesAnalyzer.getPositiveReturns()
+        print("Avg. return: %2.f %%" % (returns_trade.mean() * 100))
+        print("Returns std. dev.: %2.f %%" % (returns_trade.std() * 100))
+        print("Max. return: %2.f %%" % (returns_trade.max() * 100))
+        print("Min. return: %2.f %%" % (returns_trade.min() * 100))
+
+#亏损笔数
+    print("=============")
+    print("Unprofitable trades: %d" % (tradesAnalyzer.getUnprofitableCount()))
+    if tradesAnalyzer.getUnprofitableCount() > 0:
+        losses = tradesAnalyzer.getLosses()
+        print("Avg. loss: $%2.f" % (losses.mean()))
+        print("Losses std. dev.: $%2.f" % (losses.std()))
+        print("Max. loss: $%2.f" % (losses.min()))
+        print("Min. loss: $%2.f" % (losses.max()))
+        returns_trade = tradesAnalyzer.getNegativeReturns()
+        print("Avg. return: %2.f %%" % (returns_trade.mean() * 100))
+        print("Returns std. dev.: %2.f %%" % (returns_trade.std() * 100))
+        print("Max. return: %2.f %%" % (returns_trade.max() * 100))
+        print("Min. return: %2.f %%" % (returns_trade.min() * 100))
 
 
 if __name__ == "__main__":
-    #for m in range(5,60,5):
-    m = 40
-    print m
     code = sys.argv[1]
+    #for m in range(10,60,5):
+    m = 40
     main(m, code)

@@ -26,12 +26,16 @@ class TTM():
         self._Type = None
         self._id = 0
         self._df = None
+        self._Init = 0
 
     def setType(self, t=None):
         self._Type = t
 
     def setCode(self, c):
         self._code = c
+
+    def setInit(self, i):
+        self._Init = i
 
     def IsExists(self):
         TodayTime = strftime("%Y-%m-%d", localtime(time()))
@@ -61,8 +65,13 @@ class TTM():
             self._code = 'sh000300'
             stockName = "hs300"
 
+
         if self._Type is not None:
             stockName = self._code+"_hfq"
+
+        if self._Init == 1:
+            emg.remove(stockName)
+            return
 
         isExists = sdb.find({stockName:{"$exists":1}},{stockName:1, "_id":1}).limit(1)
         for ie in isExists:
@@ -87,6 +96,7 @@ class TTM():
         else:
             #df = ts.get_hist_data(self._code)
             df = self.getSinaKline()
+
         if df is None:
             return
 
@@ -153,17 +163,20 @@ class TTM():
                 elif stockNumber.startswith('3'):
                     self._code = 'sz' + stockNumber
 
-        url = "http://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol=%s&scale=240&datalen=900"%(self._code)
+        url = "http://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol=%s&scale=240&datalen=10"%(self._code)
         try:
             request = Request(url)
             text = urlopen(request, timeout=10).read()
             text = text.replace("\"", "")
-            text = text.replace(",","\",\"")
-            text = text.replace(":","\":\"")
-            text = text.replace("{","{\"")
-            text = text.replace("}","\"}")
-            text = text.replace("}\",\"{",  "},{")
 
+            text = text.replace(",",",\"")
+            text = text.replace(":","\":")
+            text = text.replace("{","{\"")
+
+            text = text.replace("day\":","day\":\"")
+            text = text.replace(",\"open","\",\"open")
+
+            text = text.replace("},\"{",  "},{")
             djson = json.loads(text)
             df = pd.DataFrame(djson)
             df.rename(columns=lambda x: x.replace('day', 'date'), inplace=True)
@@ -179,8 +192,8 @@ class getAllStock():
     def getas(self, t=None):
 
         emg = emongo()
-#        cname = "AllStockClass"
-        cname = "un800"
+        cname = "AllStockClass"
+#        cname = "un800"
         szCode = emg.getCollectionNames(cname)
         codeList = list(szCode.find({},{"code":1,"_id":0}))
         emg.Close()
@@ -192,6 +205,7 @@ class getAllStock():
             ttm = TTM()
             ttm.setCode(code)
             ttm.setType(t)
+            #ttm.setInit(1)
             ttm.IsExists()
             print "now next is:",i
             i+=1
