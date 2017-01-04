@@ -11,48 +11,33 @@ from pyalgotrade import bar
 from pyalgotrade.utils import dt
 
 import pandas as pd
-
 import time
-from emongo import emongo
+
+from libs.kPrice import kPrice
 
 class MonSQLDatabase(dbfeed.Database):
     def __init__(self):
         self.__df = None
 
     def getBars(self, instrument, timezone=None, fromDateTime=None, toDateTime=None):
-        emg = emongo()
-        stockdb = emg.getCollectionNames("stockDB")
+        kp = kPrice()
+        kline = kp.getAllKLine(instrument)
+        khfq = kp.getAllKLine(instrument+"_hfq")
+
+        khfq = khfq[khfq.date >= kline.head(1).date.values[0]]
         ret = []
-        code = instrument+"_hfq"
-        for post in stockdb.find({code: {'$exists':1}},{code:1,'_id':0}):
-            Date = []
-            Open = []
-            High = []
-            Low = []
-            Close = []
-            Volume = []
-            Adj_Close = []
+        kline["AdjClose"] = khfq.reset_index().close
 
-            for v in post.items():
-                for val in v[1][-500:]:
-                    dateTime = val['date']
-                    TimeStamp = time.mktime(time.strptime(dateTime,'%Y-%m-%d'))
-                    OdateTime = dt.timestamp_to_datetime(TimeStamp)
+        for row in kline.itertuples():
+            dateTime = row.date
+            TimeStamp = time.mktime(time.strptime(dateTime,'%Y-%m-%d'))
+            OdateTime = dt.timestamp_to_datetime(TimeStamp)
+            print row.close, row.AdjClose, row.date
+            ret.append(bar.BasicBar(OdateTime, row.open, row.high,
+                                    row.low, row.close, row.volume,
+                                    row.AdjClose, bar.Frequency.DAY))
 
-                    ret.append(bar.BasicBar(OdateTime, val['open'], val['high'], val['low'], val['close'], val['volume'], val['close'], bar.Frequency.DAY))
-
-                    Date.append(TimeStamp)
-                    Open.append(val['open'])
-                    High.append(val['high'])
-                    Low.append(val['low'])
-                    Close.append(val['close'])
-                    Volume.append(val['volume'])
-                    Adj_Close.append(val['close'])
-
-            self.__df = pd.DataFrame({'Date' : Date, 'Open' : Open,
-                    'High' : High,'Close' : Close,
-                    'Low' : Low,'Volume' : Volume,
-                    'Adj Close':Adj_Close})
+        self.__df = kline
 
         return ret
 

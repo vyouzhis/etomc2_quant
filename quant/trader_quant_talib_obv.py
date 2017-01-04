@@ -15,6 +15,7 @@ from libs.kPrice import kPrice
 from libs.buildReturnJson import buildReturnJson as brj
 from libs.QTaLib import QTaLib
 
+
 class OBV():
     def __init__(self):
         self._Code = ""

@@ -14,7 +14,10 @@ import tushare as ts
 from time import localtime, strftime, time
 import pymongo
 import multiprocessing
-
+try:
+    from urllib.request import urlopen, Request
+except ImportError:
+    from urllib2 import urlopen, Request
 from emongo import emongo
 
 class TTM():
@@ -36,6 +39,28 @@ class TTM():
         sdb = emg.getCollectionNames("stockDB")
 
         stockName = self._code
+
+        if self._code == 'sh':
+#上证指数
+            self._code = 'sh000001'
+            stockName = "sh"
+        elif self._code == 'sz':
+#深证指数
+            self._code = 'sz399001'
+            stockName = "sz"
+        elif self._code == 'zx':
+#中小板指数
+            self._code = 'sz399005'
+            stockName = "zx"
+        elif self._code == 'cy':
+#创业板指数
+            self._code = 'sz399006'
+            stockName = "cy"
+        elif self._code == '300':
+#沪深300
+            self._code = 'sh000300'
+            stockName = "hs300"
+
         if self._Type is not None:
             stockName = self._code+"_hfq"
 
@@ -57,17 +82,17 @@ class TTM():
                 return
 
             df = ts.get_h_data(self._code, autype=self._Type, start=stime)
+            df = df.reset_index()
+            df.date = df["date"].astype(str)
         else:
-            df = ts.get_hist_data(self._code)
-
+            #df = ts.get_hist_data(self._code)
+            df = self.getSinaKline()
         if df is None:
             return
 
+        #print df
         if df.close.count() == 0:
             return
-
-        df = df.reset_index()
-        df.date = df["date"].astype(str)
 
         stockDB = {}
 
@@ -110,13 +135,52 @@ class TTM():
 
         return baseTime
 
+    def getSinaKline(self):
+
+        stockNumber = self._code
+        if len(stockNumber) == 8:
+#8位长度的代码必须以sh或者sz开头，后面6位是数字
+            if (stockNumber.startswith('sh') or stockNumber.startswith('sz')) and stockNumber[2:8].decode().isdecimal():
+                self._code = stockNumber
+        elif len(stockNumber) == 6:
+# 6位长度的代码必须全是数字
+            if stockNumber.decode().isdigit():
+# 0开头自动补sz，6开头补sh，3开头补sz，否则无效
+                if stockNumber.startswith('0'):
+                    self._code = 'sz' + stockNumber
+                elif stockNumber.startswith('6'):
+                    self._code = 'sh' + stockNumber
+                elif stockNumber.startswith('3'):
+                    self._code = 'sz' + stockNumber
+
+        url = "http://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol=%s&scale=240&datalen=900"%(self._code)
+        try:
+            request = Request(url)
+            text = urlopen(request, timeout=10).read()
+            text = text.replace("\"", "")
+            text = text.replace(",","\",\"")
+            text = text.replace(":","\":\"")
+            text = text.replace("{","{\"")
+            text = text.replace("}","\"}")
+            text = text.replace("}\",\"{",  "},{")
+
+            djson = json.loads(text)
+            df = pd.DataFrame(djson)
+            df.rename(columns=lambda x: x.replace('day', 'date'), inplace=True)
+            df.rename(columns=lambda x: x.replace('ma_price5', 'ma5'), inplace=True)
+            df.rename(columns=lambda x: x.replace('ma_price10', 'ma10'), inplace=True)
+            df.rename(columns=lambda x: x.replace('ma_price30', 'ma30'), inplace=True)
+            #print df
+            return df
+        except Exception as e:
+            print(e)
 
 class getAllStock():
     def getas(self, t=None):
 
         emg = emongo()
-        cname = "AllStockClass"
-#        cname = "un800"
+#        cname = "AllStockClass"
+        cname = "un800"
         szCode = emg.getCollectionNames(cname)
         codeList = list(szCode.find({},{"code":1,"_id":0}))
         emg.Close()
@@ -142,12 +206,14 @@ def runStock(types=None):
 def main():
     if len(sys.argv) == 2:
         code = sys.argv[1]
-        hs = ["hs300","sh","sz","sz50"]
+
+        hs = ["zx","sh","sz","cy","300"]
         if code in hs:
             ttm = TTM()
             ttm.setCode(code)
             ttm.IsExists()
             return
+
         gas = getAllStock()
         gas.getas()
     else:
