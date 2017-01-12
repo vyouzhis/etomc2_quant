@@ -31,6 +31,9 @@ import pandas as pd
 import sys
 import json
 
+
+from libs.buildReturnJson import buildReturnJson as brj
+
 class MyStrategy(strategy.BacktestingStrategy):
     def __init__(self, feed, instrument, bBandsPeriod):
         strategy.BacktestingStrategy.__init__(self, feed)
@@ -53,8 +56,7 @@ class MyStrategy(strategy.BacktestingStrategy):
         self.setUseAdjustedValues(True)
 
     def EchoDF(self):
-        print self.__msdf.tail(30)
-        #print self.__msdf.returns.sum()
+        return self.__msdf.to_json(orient="split")
 
     def onEnterOk(self, position):
         execInfo = position.getEntryOrder().getExecutionInfo()
@@ -71,8 +73,8 @@ class MyStrategy(strategy.BacktestingStrategy):
         #self.info("SELL at $%.2f"%(execInfo.getPrice()))
         self.__position = None
 
-        pdser = pd.Series([self.__buyPrice, self.__buyTime,
-                           execInfo.getPrice(),execInfo.getDateTime(), (execInfo.getPrice() -self.__buyPrice)],index=self.__col )
+        pdser = pd.Series([self.__buyPrice, str(self.__buyTime)[:10],
+                           execInfo.getPrice(),str(execInfo.getDateTime())[:10], (execInfo.getPrice() -self.__buyPrice)],index=self.__col )
         self.__msdf = self.__msdf.append(pdser,ignore_index=True)
         self.__buyPrice = 0
         self.__buyTime = None
@@ -135,67 +137,116 @@ def main(i, code):
 
     myStrategy.run()
 
+    brjObject = brj()
+
 #交易过程
-    myStrategy.EchoDF()
+    dfjson = myStrategy.EchoDF()
 
+    brjObject.db(dfjson)
+## ...
+    brjObject.formats("markPoint")
+    brjObject.name("df")
+    brjObject.buildData()
+
+    brjObject.db(dfjson)
+## ...
+    brjObject.formats("table")
+    brjObject.name("交易细则")
+    brjObject.buildData()
+
+    base = {}
 #总资产
-    print "Final portfolio value: $%.2f" % myStrategy.getResult()
+    base[ "Final portfolio value: "] = "$%.2f" % myStrategy.getResult()
 #累计收益率
-    print "Anual return: %.2f %%" % (retAnalyzer.getCumulativeReturns()[-1] * 100)
+    base["Anual return: "] = "%.2f %%" % (retAnalyzer.getCumulativeReturns()[-1] * 100)
 #    平均收益率
-    print "Average daily return: %.2f %%" % (stats.mean(retAnalyzer.getReturns()) * 100)
+    base["Average daily return:"]=" %.2f %%" % (stats.mean(retAnalyzer.getReturns()) * 100)
 #方差收益率
-    print "Std. dev. daily return: %.4f" % (stats.stddev(retAnalyzer.getReturns()))
+    base["Std. dev. daily return:"]=" %.4f" % (stats.stddev(retAnalyzer.getReturns()))
 #夏普比率
-    print "Sharpe ratio: %.2f" % (sharpeRatioAnalyzer.getSharpeRatio(0))
+    base["Sharpe ratio: "]="%.2f" % (sharpeRatioAnalyzer.getSharpeRatio(0))
 #最大回撤
-    print "DrawDown : %.2f" % (drawDownAnalyzer.getMaxDrawDown())
+    base["DrawDown :"]=" %.2f" % (drawDownAnalyzer.getMaxDrawDown())
+    dfbase = pd.DataFrame(base,index=["val"])
 
-    print "++++++++++"
+    baseJson = dfbase.T.reset_index().to_json(orient="split")
+
+    brjObject.db(baseJson)
+    brjObject.formats("table")
+    brjObject.name("base")
+    brjObject.buildData()
+
+    AllTrades = {}
 #总交易笔数
-    print("Total trades: %d" % (tradesAnalyzer.getCount()))
+    AllTrades["Total trades:"]=" %d" % (tradesAnalyzer.getCount())
     if tradesAnalyzer.getCount() > 0:
         profits = tradesAnalyzer.getAll()
-        print("Avg. profit: $%2.f" % (profits.mean()))
-        print("Profits std. dev.: $%2.f" % (profits.std()))
-        print("Max. profit: $%2.f" % (profits.max()))
-        print("Min. profit: $%2.f" % (profits.min()))
+        AllTrades["Avg. profit:"]=" $%2.f" % (profits.mean())
+        AllTrades["Profits std. dev.:"]=" $%2.f" % (profits.std())
+        AllTrades["Max. profit: "]="$%2.f" % (profits.max())
+        AllTrades["Min. profit:"]=" $%2.f" % (profits.min())
         returns_trade = tradesAnalyzer.getAllReturns()
-        print("Avg. return: %2.f %%" % (returns_trade.mean() * 100))
-        print("Returns std. dev.: %2.f %%" % (returns_trade.std() * 100))
-        print("Max. return: %2.f %%" % (returns_trade.max() * 100))
-        print("Min. return: %2.f %%" % (returns_trade.min() * 100))
+        AllTrades["Avg. return:"]=" %2.f %%" % (returns_trade.mean() * 100)
+        AllTrades["Returns std. dev.: "]="%2.f %%" % (returns_trade.std() * 100)
+        AllTrades["Max. return: "]="%2.f %%" % (returns_trade.max() * 100)
+        AllTrades["Min. return: "]="%2.f %%" % (returns_trade.min() * 100)
+
+    df = pd.DataFrame(AllTrades,index=["val"])
+    baseJson = df.T.reset_index().to_json(orient="split")
+
+    brjObject.db(baseJson)
+    brjObject.formats("table")
+    brjObject.name("AllTrades")
+    brjObject.buildData()
 
 #盈利笔数
-    print("------")
-    print("Profitable trades: %d" % (tradesAnalyzer.getProfitableCount()))
+    proTrades = {}
+    proTrades["Profitable trades: "]="%d" % (tradesAnalyzer.getProfitableCount())
     if tradesAnalyzer.getProfitableCount() > 0:
         profits = tradesAnalyzer.getProfits()
-        print("Avg. profit: $%2.f" % (profits.mean()))
-        print("Profits std. dev.: $%2.f" % (profits.std()))
-        print("Max. profit: $%2.f" % (profits.max()))
-        print("Min. profit: $%2.f" % (profits.min()))
+        proTrades["Avg. profit: "]="$%2.f" % (profits.mean())
+        proTrades["Profits std. dev.: "]="$%2.f" % (profits.std())
+        proTrades["Max. profit:"]=" $%2.f" % (profits.max())
+        proTrades["Min. profit:"]=" $%2.f" % (profits.min())
         returns_trade = tradesAnalyzer.getPositiveReturns()
-        print("Avg. return: %2.f %%" % (returns_trade.mean() * 100))
-        print("Returns std. dev.: %2.f %%" % (returns_trade.std() * 100))
-        print("Max. return: %2.f %%" % (returns_trade.max() * 100))
-        print("Min. return: %2.f %%" % (returns_trade.min() * 100))
+        proTrades["Avg. return: "]="%2.f %%" % (returns_trade.mean() * 100)
+        proTrades["Returns std. dev.:"]=" %2.f %%" % (returns_trade.std() * 100)
+        proTrades["Max. return: "]="%2.f %%" % (returns_trade.max() * 100)
+        proTrades["Min. return: "]="%2.f %%" % (returns_trade.min() * 100)
 
+    df = pd.DataFrame(proTrades, index=["val"])
+    baseJson = df.T.reset_index().to_json(orient="split")
+
+    brjObject.db(baseJson)
+    brjObject.formats("table")
+    brjObject.name("proTrades")
+    brjObject.buildData()
 #亏损笔数
-    print("=============")
-    print("Unprofitable trades: %d" % (tradesAnalyzer.getUnprofitableCount()))
+    unproTrades = {}
+    unproTrades["Unprofitable trades:"]=" %d" % (tradesAnalyzer.getUnprofitableCount())
     if tradesAnalyzer.getUnprofitableCount() > 0:
         losses = tradesAnalyzer.getLosses()
-        print("Avg. loss: $%2.f" % (losses.mean()))
-        print("Losses std. dev.: $%2.f" % (losses.std()))
-        print("Max. loss: $%2.f" % (losses.min()))
-        print("Min. loss: $%2.f" % (losses.max()))
+        unproTrades["Avg. loss:"]=" $%2.f" % (losses.mean())
+        unproTrades["Losses std. dev.:"]=" $%2.f" % (losses.std())
+        unproTrades["Max. loss: "]="$%2.f" % (losses.min())
+        unproTrades["Min. loss: "]="$%2.f" % (losses.max())
         returns_trade = tradesAnalyzer.getNegativeReturns()
-        print("Avg. return: %2.f %%" % (returns_trade.mean() * 100))
-        print("Returns std. dev.: %2.f %%" % (returns_trade.std() * 100))
-        print("Max. return: %2.f %%" % (returns_trade.max() * 100))
-        print("Min. return: %2.f %%" % (returns_trade.min() * 100))
+        unproTrades["Avg. return: "]="%2.f %%" % (returns_trade.mean() * 100)
+        unproTrades["Returns std. dev.: "]="%2.f %%" % (returns_trade.std() * 100)
+        unproTrades["Max. return: "]="%2.f %%" % (returns_trade.max() * 100)
+        unproTrades["Min. return: "]="%2.f %%" % (returns_trade.min() * 100)
 
+    df = pd.DataFrame(unproTrades, index=["val"])
+    baseJson = df.T.reset_index().to_json(orient="split")
+
+    brjObject.db(baseJson)
+    brjObject.formats("table")
+    brjObject.name("unproTrades")
+    brjObject.buildData()
+
+    brjJson = brjObject.getResult()
+
+    print brjJson
 
 if __name__ == "__main__":
     code = sys.argv[1]

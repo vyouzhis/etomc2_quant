@@ -91,6 +91,12 @@ class TTM():
                 return
 
             df = ts.get_h_data(self._code, autype=self._Type, start=stime)
+
+            if df is None:
+                return
+            if df.empty:
+                return
+
             df = df.reset_index()
             df.date = df["date"].astype(str)
         else:
@@ -100,6 +106,8 @@ class TTM():
         if df is None:
             return
 
+        if df.empty:
+            return
         #print df
         if df.close.count() == 0:
             return
