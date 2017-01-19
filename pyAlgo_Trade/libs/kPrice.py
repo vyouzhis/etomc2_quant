@@ -14,7 +14,7 @@ import talib
 
 class kPrice():
     def __init__(self):
-        self.__conn = pymongo.MongoClient('192.168.1.83', port=27017)
+        self.__conn = pymongo.MongoClient('127.0.0.1', port=27017)
         self.__sdb = self.__conn.etomc2["stockDB"]
 
     def getAllKLine(self,code):

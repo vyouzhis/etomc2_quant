@@ -12,6 +12,7 @@ import sys,json
 import pandas as pd
 import tushare as ts
 from time import localtime, strftime, time
+from datetime import datetime
 import pymongo
 import multiprocessing
 try:
@@ -27,6 +28,7 @@ class TTM():
         self._id = 0
         self._df = None
         self._Init = 0
+        self._InitNum = 20
 
     def setType(self, t=None):
         self._Type = t
@@ -71,6 +73,7 @@ class TTM():
 
         if self._Init == 1:
             emg.remove(stockName)
+            self._InitNum = 900
             return
 
         isExists = sdb.find({stockName:{"$exists":1}},{stockName:1, "_id":1}).limit(1)
@@ -78,6 +81,7 @@ class TTM():
             self._df = pd.DataFrame(ie[stockName])
             self._id = ie['_id']
         exis = isExists.count()
+        sdate = None
         if exis != 0:
             tdf = self._df.tail(1)
             sdate =  tdf.date.values[0]
@@ -86,12 +90,11 @@ class TTM():
                 return
 
         if self._Type is not None:
-            stime = self.getBaseDate(exis)
+            stime = self.getBaseDate(sdate, exis)
             if stime is None:
                 return
 
             df = ts.get_h_data(self._code, autype=self._Type, start=stime)
-
             if df is None:
                 return
             if df.empty:
@@ -131,9 +134,11 @@ class TTM():
 
         emg.Close()
 
-    def getBaseDate(self, m):
-        StartTime = strftime("%Y-%m-%d", localtime(time()-86400*5))
+    def getBaseDate(self, st, m):
+
         if m == 1:
+            ot = int(datetime.strptime(st, '%Y-%m-%d').strftime("%s"))
+            StartTime = strftime("%Y-%m-%d", localtime(ot-86400*20))
             return StartTime
 
         emg = emongo()
@@ -171,7 +176,8 @@ class TTM():
                 elif stockNumber.startswith('3'):
                     self._code = 'sz' + stockNumber
 
-        url = "http://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol=%s&scale=240&datalen=10"%(self._code)
+        url = "http://money.finance.sina.com.cn/quotes_service/api/json_v2.php"
+        url +="/CN_MarketData.getKLineData?symbol=%s&scale=240&datalen=%d"%(self._code, self._InitNum)
         try:
             request = Request(url)
             text = urlopen(request, timeout=10).read()
@@ -238,6 +244,15 @@ def main():
 
         gas = getAllStock()
         gas.getas()
+    elif len(sys.argv) == 3:
+        code = sys.argv[1]
+        ttm = TTM()
+        ttm.setCode(code)
+        t = sys.argv[2]
+        if int(t) == 1:
+            ttm.setType("hfq")
+        #ttm.setInit(1)
+        ttm.IsExists()
     else:
         print "get all stock"
         try:

@@ -12,7 +12,7 @@
 import pymongo
 class emongo():
     def __init__(self):
-        self._IP="192.168.1.83"
+        self._IP="127.0.0.1"
         self._Port=27017
         self._conn = None
         self._sdb = None
