@@ -7,8 +7,7 @@
 # vim:fileencoding=utf-8:sw=4:et -*- coding: utf-8 -*-
 
 import tushare as ts
-import pymongo
-import json
+
 from time import localtime, strftime, time
 from emongo import emongo
 
@@ -19,8 +18,9 @@ contTime = strftime("%m-%d %H:%M", localtime(time()-3660))
 
 ndf = df[df.time > contTime]
 
-conn = pymongo.MongoClient('192.168.1.83', port=27017)
-szCode = conn.etomc2["AllStockClass"]
+emg = emongo()
+szCode = emg.getCollectionNames("AllStockClass")
+
 codeList = list(szCode.find({},{"_id":0, "name":1,"code":1}))
 
 newTalk = {}

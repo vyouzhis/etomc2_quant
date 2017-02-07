@@ -6,17 +6,16 @@
 #
 # vim:fileencoding=utf-8:sw=4:et -*- coding: utf-8 -*-
 
-import tushare as ts
-import pymongo
+
 import json
 import sys
-from time import localtime, strftime, time
 import pandas as pd
 
 import lxml.html
 from lxml import etree
-import re
 from pandas.compat import StringIO
+
+from emongo import emongo
 
 try:
     from urllib.request import urlopen, Request
@@ -67,8 +66,8 @@ def _get_ShareBonus_data(code):
 
 
 def getAllShareBonus():
-        conn = pymongo.MongoClient('192.168.1.83', port=27017)
-        szCode = conn.etomc2["un800"]
+        emg = emongo()
+        szCode = emg.getCollectionNames("un800")
         codeList = list(szCode.find({},{"code":1,"_id":0}))
 
         for post in codeList:
@@ -78,21 +77,23 @@ def getAllShareBonus():
             j = json.loads(cjson)
             dt = {}
             dt[str(code)] = j
-            conn.etomc2["ShareBonus"].insert(dt)
-        conn.close()
+            conn = emg.getCollectionNames("ShareBonus")
+            conn.insert(dt)
+        emg.Close()
 
 def main():
     if len(sys.argv) == 2:
         stock = sys.argv[1]
         print "get one stock:",stock
 
-        conn = pymongo.MongoClient('192.168.1.83', port=27017)
+        emg = emongo()
+        conn = emg.getCollectionNames("ShareBonus")
         df = _get_ShareBonus_data(stock)
         cjson = df.to_json(orient="records")
         j = json.loads(cjson)
         dt = {}
         dt[str(stock)] = j
-        conn.etomc2["ShareBonus"].insert(dt)
+        conn.insert(dt)
     else:
         print "get all stock"
         getAllShareBonus()

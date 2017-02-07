@@ -11,10 +11,10 @@ import pymongo
 import json
 import pandas as pd
 from time import localtime, strftime, time
+from emongo import emongo
 
-
-conn = pymongo.MongoClient('192.168.1.83', port=27017)
-szCode = conn.etomc2["stockInfo"]
+emg = emongo()
+szCode = emg.getCollectionNames("stockInfo")
 ym = "20151"
 wh = "profit"
 whfild = "bips"
@@ -42,7 +42,7 @@ BLo = goodCode[goodCode.code.isin(BLc)]
 
 length = BLo.code.count()
 
-sdb = conn.etomc2["stockDB"]
+sdb = emg.getCollectionNames("stockDB")
 
 step = 0
 offset = 0

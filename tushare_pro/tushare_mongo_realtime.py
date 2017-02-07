@@ -6,11 +6,9 @@
 #
 # vim:fileencoding=utf-8:sw=4:et -*- coding: utf-8 -*-
 
-import pymongo
 import tushare as ts
 import sys
 
-conn = pymongo.MongoClient('192.168.1.83', port=27017)
 stock = []
 if(len(sys.argv) > 1):
     for i in range(1,len(sys.argv)):

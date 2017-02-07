@@ -74,7 +74,7 @@ class TTM():
         if self._Init == 1:
             emg.remove(stockName)
             self._InitNum = 900
-            return
+            #return
 
         isExists = sdb.find({stockName:{"$exists":1}},{stockName:1, "_id":1}).limit(1)
         for ie in isExists:
@@ -219,7 +219,7 @@ class getAllStock():
             ttm = TTM()
             ttm.setCode(code)
             ttm.setType(t)
-            #ttm.setInit(1)
+            ttm.setInit(1)
             ttm.IsExists()
             print "now next is:",i
             i+=1
@@ -234,12 +234,13 @@ def runStock(types=None):
 def main():
     if len(sys.argv) == 2:
         code = sys.argv[1]
-
-        hs = ["zx","sh","sz","cy","300"]
-        if code in hs:
-            ttm = TTM()
-            ttm.setCode(code)
-            ttm.IsExists()
+        if code == "I":
+            hs = ["zx","sh","sz","cy","300"]
+            for cds in hs:
+                ttm = TTM()
+                ttm.setCode(cds)
+                ttm.setInit(1)
+                ttm.IsExists()
             return
 
         gas = getAllStock()
