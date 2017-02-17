@@ -10,6 +10,7 @@ import tushare as ts
 import pymongo
 import json
 import pandas as pd
+from emongo import emongo
 
 df500 = ts.get_zz500s()
 df300 = ts.get_hs300s()
@@ -19,5 +20,8 @@ df800 = df800.append(df300,ignore_index=True)
 df800.sort_values(by="code")
 
 un800 = json.loads(df800.to_json(orient="records"))
-conn = pymongo.MongoClient('192.168.1.83', port=27017)
-conn.etomc2["un800"].insert(un800)
+#conn = pymongo.MongoClient('192.168.1.83', port=27017)
+#conn.etomc2["un800"].insert(un800)
+emg = emongo()
+szCode = emg.getCollectionNames("un800")
+szCode.insert(un800)
